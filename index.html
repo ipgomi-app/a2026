@@ -115,7 +115,7 @@ const SHEET_TOKEN = 'kpp-stats-2026';
 function logToSheet(p) {
   if (!SHEET_WEBAPP_URL || !p || !p.name) return;
   try {
-    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: p.amount || 0, grade: p.grade || '', accompany: !!p.accompany, company: p.company || '', reason: p.reason || '' }) });
+    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: p.amount || 0, grade: p.grade || '', accompany: !!p.accompany, company: p.company || '', code: p.code || '', reason: p.reason || '' }) });
   } catch (e) {}
 }
 // 통계 조회 (JSONP — Apps Script CORS 우회)
@@ -172,7 +172,7 @@ const INIT = {
   weight: '', onceQty: '', monthVol: '', qtyPerPlt: '',
   mixed: false,
   via: false, manual: false, timeLimit: false, wait: false, hazmat: false, peak: false,
-  freq: '', company: '', existRate: '',
+  freq: '', company: '', code: '', existRate: '',
 };
 
 // ════════════════════════ 폰 저장 (localStorage) ════════════════════════
@@ -208,6 +208,8 @@ function KPPTransportApp() {
   const [sheetRows, setSheetRows] = useState(null); // 공용 시트 통계 (null=미로드)
   const [sheetStatus, setSheetStatus] = useState('idle'); // idle|loading|ok|err
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false); // 기존 견적 갱신 확인
+  const [updateWhen, setUpdateWhen] = useState('');
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
@@ -275,9 +277,12 @@ function KPPTransportApp() {
   const onPhoneSave = () => {
     setShowSaveSheet(false);
     if (!f.company.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
+    if (!f.code.trim()) { showToast('고객 코드를 먼저 입력해주세요'); return; }
     setShowSaveConfirm(true);
   };
-  const confirmSave = () => {
+  // 기존 견적일시 표기용: "26년 6월 15일 08시"
+  const formatWhen = (ts) => { const d = new Date(ts); return String(d.getFullYear()).slice(2) + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + '시'; };
+  const doSave = (forceUpdate) => {
     const list = readSaved();
     const info = MGR_INFO[mgrName] || {};
     const avail = [rateY, rateB].filter(x => x != null);
@@ -285,31 +290,29 @@ function KPPTransportApp() {
     const now = new Date();
     const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const company = f.company.trim();
-    list.push({
-      id: Date.now(), company, savedAt: now.toLocaleDateString('ko-KR'),
-      ts: now.getTime(), ym,
+    const code = f.code.trim();
+    // 같은 코드의 기존 견적 → 갱신 확인
+    const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
+    if (idx !== -1 && !forceUpdate) { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
+    const rec = {
+      id: idx !== -1 ? list[idx].id : Date.now(), company, code,
+      savedAt: now.toLocaleDateString('ko-KR'), ts: now.getTime(), ym,
       mgr: { name: mgrName, branch: info.branch || '', region: info.region || '' },
       carrier: effCarrier || '', amount,
       sales: { grade: salesGrade, reason: salesGrade === 'C' ? cReason : '', accompany },
       data: f, scan: { manualRows, scanDep, scanTonIdx }
-    });
+    };
+    if (idx !== -1) list[idx] = rec; else list.push(rec); // 코드 일치 시 갱신(덮어쓰기), 카운트는 1건 유지
     writeSaved(list);
-    // 공용 시트(방문) 카운트 — 1차 중복방지: 같은 담당자+고객사+월은 1회만 전송
-    if (MGR_INFO[mgrName]) {
-      const dupKey = mgrName + '|' + company + '|' + ym;
-      let logged = [];
-      try { logged = JSON.parse(localStorage.getItem('kpp_sheet_log') || '[]'); } catch {}
-      if (logged.indexOf(dupKey) === -1) {
-        logToSheet({ name: mgrName, amount, grade: salesGrade, accompany, company, reason: salesGrade === 'C' ? cReason : '' });
-        logged.push(dupKey);
-        try { localStorage.setItem('kpp_sheet_log', JSON.stringify(logged.slice(-500))); } catch {}
-      } // 중복 시 시트 전송만 생략(로컬 저장은 정상 진행)
-    }
+    // 공용 시트: 코드로 upsert(갱신) — 마지막 갱신 기준 카운트. 등록 담당자만.
+    if (MGR_INFO[mgrName]) logToSheet({ name: mgrName, amount, grade: salesGrade, accompany, company, code, reason: salesGrade === 'C' ? cReason : '' });
+    setShowUpdateConfirm(false);
     setShowSaveConfirm(false);
     setSalesGrade(''); setCReason('단가문제'); setAccompany(false);
     setShowSaveSheet(true);
-    showToast('저장되었습니다');
+    showToast(idx !== -1 ? '갱신되었습니다' : '저장되었습니다');
   };
+  const confirmSave = () => doSave(false);
   const openLoad = () => { setSavedList(readSaved()); setLoadSearch(''); setShowLoadModal(true); };
   const loadQuote = (item) => { setF({ ...INIT, ...item.data }); if (item.scan) { if (Array.isArray(item.scan.manualRows)) setManualRows(item.scan.manualRows); if (item.scan.scanDep) setScanDep(item.scan.scanDep); if (typeof item.scan.scanTonIdx === 'number') setScanTonIdx(item.scan.scanTonIdx); } setTab('quote'); setOpenCargo(true); setOpenCust(true); setShowLoadModal(false); showToast('불러왔습니다'); };
   const deleteQuote = (id) => { const next = readSaved().filter(x => x.id !== id); writeSaved(next); setSavedList(next); };
@@ -1051,8 +1054,16 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               </div>
               {openCust && (
                 <div style={{ marginTop: 12 }}>
-                  <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                  <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1.5 }}>
+                      <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
+                      <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={lbl}>고객 코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
+                      <input style={inp} placeholder="예: M1024" value={f.code} onChange={e => upd('code', e.target.value)} />
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>월 운송횟수(선택)</label>
@@ -1417,6 +1428,38 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   onClick={confirmSave}
                   style={{ flex: 1.4, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}
                 >저장</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 기존 견적 갱신 확인 */}
+        {showUpdateConfirm && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setShowUpdateConfirm(false)}
+          >
+            <div
+              style={{ background: '#fff', borderRadius: 16, padding: '24px 20px 18px', maxWidth: 320, width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 26, marginBottom: 10 }}>🔁</div>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: '#111', marginBottom: 6, lineHeight: 1.5 }}>
+                <b style={{ color: NAVY }}>{f.code}</b> · {f.company}
+              </div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 18, lineHeight: 1.6 }}>
+                <b style={{ color: '#b45309' }}>{updateWhen}</b>에 기견적건이 있습니다.<br />갱신하시겠습니까?
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>갱신 시 최신 견적으로 덮어쓰며, 카운트는 1건으로 유지됩니다.</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setShowUpdateConfirm(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}
+                >취소</button>
+                <button
+                  onClick={() => doSave(true)}
+                  style={{ flex: 1.4, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}
+                >갱신</button>
               </div>
             </div>
           </div>
