@@ -174,6 +174,7 @@ function KPPTransportApp() {
   const [showExit, setShowExit] = useState(false);
   const exitingRef = useRef(false);
   const [showRefresh, setShowRefresh] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [repName, setRepName] = useState(() => { try { return localStorage.getItem('kpp_rep_name') || ''; } catch { return ''; } });
   const [repPhone, setRepPhone] = useState(() => { try { return localStorage.getItem('kpp_rep_phone') || ''; } catch { return ''; } });
@@ -674,21 +675,27 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
   const accHdr = (open) => ({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', padding: '2px 0 0' });
   const chevron = (open) => ({ fontSize: 12, color: NAVY, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' });
 
+  const canOut = !!(kppRate && f.company.trim());
+  const outGuard = (then) => {
+    if (!f.company.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
+    if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
+    then();
+  };
   const actionBar = (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <button
-          onClick={tab === 'scan' ? resetScan : resetForm}
+          onClick={() => setShowReset(true)}
           style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: NAVY, fontSize: 14, fontWeight: 500, cursor: 'pointer', textAlign: 'center' }}
         >← 입력 수정 / 초기화</button>
         <button
-          onClick={() => { if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; } setShowSaveSheet(true); }}
-          style={{ background: kppRate ? 'linear-gradient(135deg,#0c447c,#1565c0)' : '#cbd5e1', border: 'none', borderRadius: 24, color: kppRate ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 700, cursor: kppRate ? 'pointer' : 'default', padding: '13px 26px', whiteSpace: 'nowrap', boxShadow: kppRate ? '0 3px 10px rgba(12,68,124,0.30)' : 'none' }}
+          onClick={() => outGuard(() => setShowSaveSheet(true))}
+          style={{ background: canOut ? 'linear-gradient(135deg,#0c447c,#1565c0)' : '#cbd5e1', border: 'none', borderRadius: 24, color: canOut ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 700, cursor: canOut ? 'pointer' : 'default', padding: '13px 26px', whiteSpace: 'nowrap', boxShadow: canOut ? '0 3px 10px rgba(12,68,124,0.30)' : 'none' }}
         >💾 저장</button>
       </div>
       <button
-        style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: kppRate ? 'pointer' : 'default', textAlign: 'center', background: kppRate ? 'linear-gradient(135deg,#1e40af,#2563eb)' : '#cbd5e1', color: kppRate ? '#fff' : '#6b7280', border: 'none', boxShadow: kppRate ? '0 3px 12px rgba(37,99,235,.35)' : 'none' }}
-        onClick={() => { if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; } setShowPdfModal(true); }}
+        style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: canOut ? 'pointer' : 'default', textAlign: 'center', background: canOut ? 'linear-gradient(135deg,#1e40af,#2563eb)' : '#cbd5e1', color: canOut ? '#fff' : '#6b7280', border: 'none', boxShadow: canOut ? '0 3px 12px rgba(37,99,235,.35)' : 'none' }}
+        onClick={() => outGuard(() => setShowPdfModal(true))}
       >
         📄 제안서 PDF 저장 / 인쇄
       </button>
@@ -1150,6 +1157,33 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   onClick={() => { setShowExit(false); exitingRef.current = true; try { window.history.go(-2); } catch {} try { window.close(); } catch {} }}
                   style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}
                 >닫기</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 초기화 확인 */}
+        {showReset && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setShowReset(false)}
+          >
+            <div
+              style={{ background: '#fff', borderRadius: 16, padding: '24px 20px 18px', maxWidth: 300, width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 26, marginBottom: 10 }}>↺</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 6 }}>초기화하시겠습니까?</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 18 }}>{tab === 'scan' ? '운임 분석 입력이 모두 지워집니다.' : '입력한 견적 내용이 모두 지워집니다.'}</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setShowReset(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}
+                >취소</button>
+                <button
+                  onClick={() => { (tab === 'scan' ? resetScan : resetForm)(); setShowReset(false); showToast('초기화되었습니다'); }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: '#dc2626', color: '#fff', border: 'none' }}
+                >초기화</button>
               </div>
             </div>
           </div>
