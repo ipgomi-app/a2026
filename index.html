@@ -506,8 +506,8 @@ ${manualKPP.rows.map(r => `      · ${r.지역} : 현재 ${r.existRate ? fmt(r.e
     const pctStr = perTripPct < 1 ? perTripPct.toFixed(1) : Math.round(perTripPct).toString();
     const isDown  = perTripSave >= 0;
     const arrow   = isDown ? '▼' : '▲';
-    const rowBg   = isDown ? '#e6f7ee' : '#fef2f2';
-    const rowClr  = isDown ? '#15803d' : '#dc2626';
+    const rowBg   = isDown ? '#fef2f2' : '#e6f7ee';
+    const rowClr  = isDown ? '#dc2626' : '#15803d';
     const annualSaveAbs = freq > 0 ? Math.abs(perTripSave) * freq * 12 : null;
 
     const roiRows = existRate > 0 ? `
