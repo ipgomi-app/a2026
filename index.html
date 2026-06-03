@@ -82,7 +82,10 @@ const REGIONS = {"특별·광역시":["서울","세종","광주(광역)","대구
 const TONS = ["1톤","1.4톤","2.5톤","3.5톤","3.5톤 광폭","5톤","5톤 플러스","5톤 장축","8톤","11톤","11톤 장축","14톤","18톤","25톤"];
 const DEPARTURES = ["부산","김해","양산","창원","진주","대구","구미","영천","안동","울산","포항"];
 const MANAGERS = {"경북권역":{"구미지점":["김후락","오대욱","안무진"],"대구지점":["윤귀열","박승훈","박찬현","윤정목"],"안동지점":["김원세","김강민"],"영천지점":["이기선","이상훈","이정훈"],"경북권역":["서대열"]},"부산권역":{"부산지점":["고봉재","김상훈","안훈준","최승현"],"양산지점":["김재호","한상민"],"울산지점":["배종일","차수범"],"포항지점":["박훈원"],"부산권역":["이민승"]},"경남권역":{"김해지점":["문용욱","최영수","이상윤"],"제주지점":["최도용","서태식"],"진주지점":["이종근1","정준혁","권청대"],"창원지점":["이태영","허성종"],"경남권역":["방기영"]}};
-const ADMIN_PW_HASH = '5f5cd0231e76cbe0c909edd24422771a45ce6f33658bcc6571b4f3c33e677641';
+const ADMIN_PW_HASH = '5f5cd0231e76cbe0c909edd24422771a45ce6f33658bcc6571b4f3c33e677641'; // legacy(unsalted)
+const ADMIN_SALT = 'kpp!#2026_adm';  // 무차별대입 비용 증가용 고정 salt
+// salted hash = SHA-256(ADMIN_SALT + adminPw) — 최초 로그인 후 자동 안내, 이후 ADMIN_PW_HASH_V2로 전환
+const ADMIN_PW_HASH_V2 = '';  // 최초 로그인 후 관리자 패널에 표시되는 값을 여기 붙여넣으면 강화 완료
 const MGR_INFO = (() => { const m = {}; for (const r in MANAGERS) for (const b in MANAGERS[r]) for (const n of MANAGERS[r][b]) m[n] = { branch: b, region: r }; return m; })();
 const ADM_PAL = ["#0c447c","#1565c0","#2e7d32","#ef6c00","#6a1b9a","#00838f","#c62828","#558b2f","#4527a0","#ad1457","#00695c","#5d4037","#1976d2","#388e3c","#f9a825","#7b1fa2","#0097a7","#d84315","#455a64","#9e9d24","#8d6e63","#3949ab","#00acc1","#e64a19","#5e35b1","#43a047","#fb8c00","#c2185b","#00897b","#3f51b5","#7cb342"];
 const ADM_RC = {"경북권역":["#0c447c","#eef3f9"],"부산권역":["#2e7d32","#eef7ef"],"경남권역":["#8a4b00","#fbf2e7"]};
@@ -122,7 +125,7 @@ function logToSheet(p) {
   } catch (e) {}
 }
 // 통계 조회 (JSONP — Apps Script CORS 우회)
-function fetchSheetRows() {
+function fetchSheetRows(readToken) {
   return new Promise((resolve, reject) => {
     if (!SHEET_WEBAPP_URL) return reject(new Error('no-url'));
     const cb = '__kppcb' + Date.now();
@@ -131,7 +134,11 @@ function fetchSheetRows() {
     function cleanup() { clearTimeout(timer); delete window[cb]; if (s.parentNode) s.parentNode.removeChild(s); }
     window[cb] = (data) => { cleanup(); resolve((data && data.rows) || []); };
     s.onerror = () => { cleanup(); reject(new Error('net')); };
-    s.src = SHEET_WEBAPP_URL + '?token=' + encodeURIComponent(SHEET_TOKEN) + '&callback=' + cb;
+    // readToken이 있으면 분리된 읽기 전용 토큰 사용(GET 인증 강화), 없으면 기존 토큰으로 폴백
+    const tokenParam = readToken
+      ? 'read_token=' + encodeURIComponent(readToken)
+      : 'token=' + encodeURIComponent(SHEET_TOKEN);
+    s.src = SHEET_WEBAPP_URL + '?' + tokenParam + '&callback=' + cb;
     document.body.appendChild(s);
   });
 }
@@ -216,6 +223,8 @@ function KPPTransportApp() {
   const [showCodeCheck, setShowCodeCheck] = useState(false); // 업체명 일치·코드 불일치 재확인
   const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCompany: '', existCode: '', inputCode: '' });
   const [checkingSheet, setCheckingSheet] = useState(false); // 저장 시 전사(시트) 유사업체 조회 중
+  const [readToken, setReadToken] = useState('');      // 관리자 인증 후 파생 — GET 분리 인증용
+  const [newHashForUpdate, setNewHashForUpdate] = useState(''); // 해시 강화용 — 관리자 패널에 표시
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
@@ -316,7 +325,7 @@ function KPPTransportApp() {
       let match = null;
       try {
         setCheckingSheet(true);
-        const rows = await fetchSheetRows(); // 전사 조회 (~1~3초)
+        const rows = await fetchSheetRows(readToken); // 전사 조회 (~1~3초)
         match = rows.find(r => { const rc = String(r.code || '').trim(); const rn = String(r.company || ''); return rc && rc !== code && f2.length >= 2 && rn.slice(0, 2) === f2; });
         if (match) match = { company: String(match.company || ''), code: String(match.code || '').trim() };
       } catch (e) {
@@ -351,17 +360,31 @@ function KPPTransportApp() {
   const deleteQuote = (id) => { const next = readSaved().filter(x => x.id !== id); writeSaved(next); setSavedList(next); };
   const verifyAdmin = async () => {
     try {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(adminPw));
-      const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-      if (hex === ADMIN_PW_HASH) { setAdminAuthed(true); setAdminPw(''); }
-      else showToast('비밀번호가 올바르지 않습니다');
+      const enc = new TextEncoder();
+      const toHex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+      // 1) salted 해시 확인 (ADMIN_PW_HASH_V2 설정 후 강화 완료 상태)
+      const saltedBuf = await crypto.subtle.digest('SHA-256', enc.encode(ADMIN_SALT + adminPw));
+      const saltedHex = toHex(saltedBuf);
+      const saltedOk = ADMIN_PW_HASH_V2 && saltedHex === ADMIN_PW_HASH_V2;
+      // 2) legacy(unsalted) 해시 확인 — 마이그레이션 전 호환
+      const legacyBuf = await crypto.subtle.digest('SHA-256', enc.encode(adminPw));
+      const legacyHex = toHex(legacyBuf);
+      const legacyOk = legacyHex === ADMIN_PW_HASH;
+      if (!saltedOk && !legacyOk) { showToast('비밀번호가 올바르지 않습니다'); return; }
+      // 3) GET 읽기 전용 토큰 파생 — 소스에 없음, admin 비번에서만 도출 가능
+      const rtBuf = await crypto.subtle.digest('SHA-256', enc.encode(adminPw + ':kpp-read-2026'));
+      const rt = toHex(rtBuf).slice(0, 32);
+      setReadToken(rt);
+      // 4) legacy로 통과 시 → salted 해시 표시(코드 업데이트 안내용)
+      if (legacyOk && !saltedOk) setNewHashForUpdate(saltedHex);
+      setAdminAuthed(true); setAdminPw('');
     } catch { showToast('확인 중 오류가 발생했습니다'); }
   };
-  // 관리자 조회 시 공용 시트 로드 (전사 통계)
+  // 관리자 조회 시 공용 시트 로드 (전사 통계) — readToken으로 GET 분리 인증
   useEffect(() => {
     if (showAdmin && adminAuthed && SHEET_WEBAPP_URL) {
       setSheetStatus('loading');
-      fetchSheetRows()
+      fetchSheetRows(readToken)
         .then(rows => { setSheetRows(rows); setSheetStatus('ok'); })
         .catch(() => setSheetStatus('err'));
     }
@@ -1309,9 +1332,33 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 </>
               ) : (
                 <>
+                  {/* 보안 업그레이드 안내 — 레거시 해시로 로그인 시 1회 표시 */}
+                  {newHashForUpdate && (
+                    <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 11.5 }}>
+                      <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 4 }}>🔐 보안 강화 안내 (1회)</div>
+                      <div style={{ color: '#78350f', marginBottom: 6 }}>아래 값을 복사해 코드의 <b>ADMIN_PW_HASH_V2</b>에 붙여넣은 뒤 재배포하세요.</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <code style={{ flex: 1, fontSize: 10, background: '#fff', padding: '4px 6px', borderRadius: 6, wordBreak: 'break-all', color: '#374151' }}>{newHashForUpdate}</code>
+                        <button onClick={() => { navigator.clipboard?.writeText(newHashForUpdate); showToast('복사됨'); }}
+                          style={{ padding: '4px 10px', background: '#92400e', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>복사</button>
+                      </div>
+                    </div>
+                  )}
+                  {/* Apps Script 읽기 토큰 — AS READ_TOKEN에 1회 설정 */}
+                  {readToken && (
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 11.5 }}>
+                      <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 4 }}>🔑 AS 읽기 토큰 (1회 설정)</div>
+                      <div style={{ color: '#1e3a8a', marginBottom: 6 }}>Apps Script의 <b>READ_TOKEN</b>에 붙여넣고 재배포하면 GET이 소스 외부로 보호됩니다.</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <code style={{ flex: 1, fontSize: 10, background: '#fff', padding: '4px 6px', borderRadius: 6, wordBreak: 'break-all', color: '#374151' }}>{readToken}</code>
+                        <button onClick={() => { navigator.clipboard?.writeText(readToken); showToast('복사됨'); }}
+                          style={{ padding: '4px 10px', background: '#1e40af', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>복사</button>
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>🛠️ 관리자 통계</div>
-                    <button onClick={() => { setSheetStatus('loading'); fetchSheetRows().then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
+                    <button onClick={() => { setSheetStatus('loading'); fetchSheetRows(readToken).then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
                       style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
                   </div>
                   {/* 카드 분리: 담당자·지점 통계 / 영업 통계 */}
