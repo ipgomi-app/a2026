@@ -112,11 +112,15 @@ function applyRates(obj) { RATE_DATA = obj.RATE_DATA; BAROGO_RATE_DATA = obj.BAR
 // ════════════════════════ 공용 통계 (Google Sheets / Apps Script) ════════════════════════
 const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzk4uEiAcEQK9eJF7i0O1g3dRMjag4gaJMX34ZUtsguIPZr2CzAZzlk5PbtLLO6ATEn/exec';
 const SHEET_TOKEN = 'kpp-stats-2026';
-// 견적 저장 시 [등급, 동행, 담당자, 업체명, 금액, 사유] 전송 (fire-and-forget)
+// 견적 저장 시 [등급, 동행, 담당자, 업체명, 코드, 금액, 사유] 전송 (fire-and-forget)
+// 시트에는 마스킹해서 전송(전체 데이터는 폰 로컬에만): 업체명=앞3자리+**, 코드=뒷3자리 마스킹(앞부분 유지=고유), 금액=앞3자리만 유효(나머지 0)
+const maskSheet3 = (s) => { s = String(s || ''); return s.length > 3 ? s.slice(0, 3) + '**' : s; };
+const maskSheetCode = (s) => { s = String(s || ''); return s.length > 3 ? s.slice(0, s.length - 3) + '***' : s; };
+const maskSheetAmt = (n) => { n = Math.round(Number(n) || 0); if (n < 1000) return n; const f = Math.pow(10, String(n).length - 3); return Math.floor(n / f) * f; };
 function logToSheet(p) {
   if (!SHEET_WEBAPP_URL || !p || !p.name) return;
   try {
-    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: p.amount || 0, grade: p.grade || '', accompany: p.accompany || '', company: p.company || '', code: p.code || '', reason: p.reason || '' }) });
+    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: maskSheetAmt(p.amount), grade: p.grade || '', accompany: p.accompany || '', company: maskSheet3(p.company), code: maskSheetCode(p.code), reason: p.reason || '' }) });
   } catch (e) {}
 }
 // 통계 조회 (JSONP — Apps Script CORS 우회)
