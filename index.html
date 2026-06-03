@@ -115,7 +115,7 @@ const SHEET_TOKEN = 'kpp-stats-2026';
 function logToSheet(p) {
   if (!SHEET_WEBAPP_URL || !p || !p.name) return;
   try {
-    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: p.amount || 0, grade: p.grade || '', accompany: !!p.accompany, company: p.company || '', code: p.code || '', reason: p.reason || '' }) });
+    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: p.amount || 0, grade: p.grade || '', accompany: p.accompany || '', company: p.company || '', code: p.code || '', reason: p.reason || '' }) });
   } catch (e) {}
 }
 // 통계 조회 (JSONP — Apps Script CORS 우회)
@@ -202,7 +202,7 @@ function KPPTransportApp() {
   const [adminPeriod, setAdminPeriod] = useState('m'); // m=당월, t=누계
   const [adminMetric, setAdminMetric] = useState('c'); // c=건수, a=금액
   const [adminTab, setAdminTab] = useState('mgr'); // mgr=담당자·지점, sales=영업 통계(표시만)
-  const [accompany, setAccompany] = useState(false); // 동행 방문 여부
+  const [accompany, setAccompany] = useState(''); // 동행: ''(없음)/'need'(필요★)/'done'(완료●)
   const [salesGrade, setSalesGrade] = useState(''); // 영업 등급 A/B/C
   const [cReason, setCReason] = useState('단가문제'); // C등급 사유
   const [sheetRows, setSheetRows] = useState(null); // 공용 시트 통계 (null=미로드)
@@ -308,7 +308,7 @@ function KPPTransportApp() {
     if (MGR_INFO[mgrName]) logToSheet({ name: mgrName, amount, grade: salesGrade, accompany, company, code, reason: salesGrade === 'C' ? cReason : '' });
     setShowUpdateConfirm(false);
     setShowSaveConfirm(false);
-    setSalesGrade(''); setCReason('단가문제'); setAccompany(false);
+    setSalesGrade(''); setCReason('단가문제'); setAccompany('');
     setShowSaveSheet(true);
     showToast(idx !== -1 ? '갱신되었습니다' : '저장되었습니다');
   };
@@ -354,9 +354,11 @@ function KPPTransportApp() {
     const now = new Date();
     const curYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     let rows, source;
-    if (sheetRows) { rows = sheetRows.map(r => ({ name: r.name, amount: Number(r.amount) || 0, ym: r.ym, grade: r.grade || '', accompany: !!r.accompany, reason: r.reason || '' })); source = '전사(시트)'; }
-    else { rows = readSaved().filter(q => q.mgr && q.mgr.name).map(q => ({ name: q.mgr.name, amount: q.amount || 0, ym: q.ym, grade: (q.sales && q.sales.grade) || '', accompany: !!(q.sales && q.sales.accompany), reason: (q.sales && q.sales.reason) || '' })); source = '이 기기'; }
-    const blank = () => ({ cA: 0, cB: 0, cC: 0, aA: 0, aB: 0, aC: 0, acc: 0, r: { '단가문제': 0, '지인업체': 0, '조건문제': 0 } });
+    // accompany 정규화: 'need'(필요★) / 'done'(완료●) / ''(없음). 시트는 심볼(★/●)로 올 수 있음.
+    const normAcc = (v) => { const s = String(v || ''); if (s === 'done' || s.indexOf('●') !== -1) return 'done'; if (s === 'need' || s.indexOf('★') !== -1) return 'need'; return ''; };
+    if (sheetRows) { rows = sheetRows.map(r => ({ name: r.name, amount: Number(r.amount) || 0, ym: r.ym, grade: r.grade || '', accompany: normAcc(r.accompany), reason: r.reason || '' })); source = '전사(시트)'; }
+    else { rows = readSaved().filter(q => q.mgr && q.mgr.name).map(q => ({ name: q.mgr.name, amount: q.amount || 0, ym: q.ym, grade: (q.sales && q.sales.grade) || '', accompany: normAcc(q.sales && q.sales.accompany), reason: (q.sales && q.sales.reason) || '' })); source = '이 기기'; }
+    const blank = () => ({ cA: 0, cB: 0, cC: 0, aA: 0, aB: 0, aC: 0, accNeed: 0, accDone: 0, r: { '단가문제': 0, '지인업체': 0, '조건문제': 0 } });
     const per = {};
     let total = 0;
     for (const r of rows) {
@@ -365,7 +367,7 @@ function KPPTransportApp() {
       if (!r.grade) continue; // 등급 미입력 행 제외
       total++;
       if (!per[r.name]) per[r.name] = { m: blank(), t: blank() };
-      const add = (b) => { b['c' + r.grade]++; b['a' + r.grade] += r.amount; if (r.accompany) b.acc++; if (r.grade === 'C' && b.r[r.reason] != null) b.r[r.reason]++; };
+      const add = (b) => { b['c' + r.grade]++; b['a' + r.grade] += r.amount; if (r.accompany === 'need') b.accNeed++; else if (r.accompany === 'done') b.accDone++; if (r.grade === 'C' && b.r[r.reason] != null) b.r[r.reason]++; };
       add(per[r.name].t);
       if (r.ym === curYm) add(per[r.name].m);
     }
@@ -376,15 +378,14 @@ function KPPTransportApp() {
     const per = salesStats.per || {};
     const P = adminPeriod, M = adminMetric;
     const names = Object.keys(MGR_INFO).filter(n => MGR_INFO[n].branch !== MGR_INFO[n].region);
-    const getb = (n) => (per[n] ? per[n][P === 'm' ? 'm' : 't'] : null) || { cA: 0, cB: 0, cC: 0, aA: 0, aB: 0, aC: 0, acc: 0, r: { '단가문제': 0, '지인업체': 0, '조건문제': 0 } };
+    const getb = (n) => (per[n] ? per[n][P === 'm' ? 'm' : 't'] : null) || { cA: 0, cB: 0, cC: 0, aA: 0, aB: 0, aC: 0, accNeed: 0, accDone: 0, r: { '단가문제': 0, '지인업체': 0, '조건문제': 0 } };
     // 등급 비중
     const GC = { A: '#15803d', B: '#b45309', C: '#b91c1c' };
     const GLB = { A: 'A 가능성↑', B: 'B 영업지속', C: 'C 영업불가' };
     let gA = blankAgg(), gB = blankAgg(), gC = blankAgg();
     function blankAgg() { return { c: 0, a: 0 }; }
     const reasons = { '단가문제': { c: 0, a: 0 }, '지인업체': { c: 0, a: 0 }, '조건문제': { c: 0, a: 0 } };
-    let accTot = 0;
-    names.forEach(n => { const b = getb(n); gA.c += b.cA; gA.a += b.aA; gB.c += b.cB; gB.a += b.aB; gC.c += b.cC; gC.a += b.aC; accTot += b.acc; for (const k in reasons) reasons[k].c += b.r[k]; });
+    names.forEach(n => { const b = getb(n); gA.c += b.cA; gA.a += b.aA; gB.c += b.cB; gB.a += b.aB; gC.c += b.cC; gC.a += b.aC; for (const k in reasons) reasons[k].c += b.r[k]; });
     const donut = (rows, palMap) => {
       const val = r => M === 'c' ? r.cnt : r.amt;
       const nz = rows.filter(r => r.cnt > 0).sort((a, b) => val(b) - val(a));
@@ -401,11 +402,16 @@ function KPPTransportApp() {
     const gradeRows = [{ k: 'A', label: GLB.A, cnt: gA.c, amt: gA.a }, { k: 'B', label: GLB.B, cnt: gB.c, amt: gB.a }, { k: 'C', label: GLB.C, cnt: gC.c, amt: gC.a }];
     const RPAL = { '단가문제': '#b91c1c', '지인업체': '#7b1fa2', '조건문제': '#00695c' };
     const reasonRows = Object.keys(reasons).map(k => ({ k, label: k, cnt: reasons[k].c, amt: reasons[k].a }));
-    // 표: 권역/지점/담당자 · A/B/C · 동행(★)
+    // 표: 권역/지점/담당자 · A/B/C · 동행(필요★ / 완료●)
     const num = (v) => v === 0 ? '<span class="kd-z">·</span>' : '<b>' + v + '</b>';
-    const acc = (v) => v === 0 ? '<span class="kd-z">·</span>' : '<b style="color:#b45309">★' + v + '</b>';
-    let tb = '<tr><th>권역</th><th>지점</th><th>담당자</th><th>A</th><th>B</th><th>C</th><th>동행</th></tr>';
-    let TA = 0, TB = 0, TC = 0, TAcc = 0;
+    // 동행 셀: 필요=★(앰버), 완료=●(검은점). 둘 다 0이면 ·
+    const acc = (need, done, white) => {
+      if (!need && !done) return white ? '<b style="color:#fff">·</b>' : '<span class="kd-z">·</span>';
+      const sc = white ? '#fff' : '#b45309', dc = white ? '#fff' : '#111';
+      return (need ? '<b style="color:' + sc + ';font-size:11px">★' + need + '</b>' : '') + (done ? '<b style="color:' + dc + ';font-size:11px">' + (need ? '&nbsp;' : '') + '●' + done + '</b>' : '');
+    };
+    let tb = '<tr><th>권역</th><th>지점</th><th>담당자</th><th>A</th><th>B</th><th>C</th><th>동행<br><span style="font-weight:400;font-size:9px">★필요 ●완료</span></th></tr>';
+    let TA = 0, TB = 0, TC = 0, TNeed = 0, TDone = 0;
     for (const reg in MANAGERS) {
       const brs = Object.entries(MANAGERS[reg]).filter(e => e[0] !== reg);
       const rr = brs.reduce((s, e) => s + e[1].length + 1, 0); let fr = true;
@@ -413,15 +419,16 @@ function KPPTransportApp() {
         ppl.forEach((n, i) => { const b = getb(n); let t = '';
           if (fr) { t += '<td class="reg" rowspan="' + rr + '" style="background:' + ADM_RC[reg][0] + '">' + reg + '</td>'; fr = false; }
           if (i === 0) { t += '<td class="br" rowspan="' + ppl.length + '" style="background:' + ADM_RC[reg][1] + '">' + br + '</td>'; }
-          t += '<td class="nm">' + n + '</td><td>' + num(b.cA) + '</td><td>' + num(b.cB) + '</td><td>' + num(b.cC) + '</td><td>' + acc(b.acc) + '</td>'; tb += '<tr>' + t + '</tr>';
+          t += '<td class="nm">' + n + '</td><td>' + num(b.cA) + '</td><td>' + num(b.cB) + '</td><td>' + num(b.cC) + '</td><td>' + acc(b.accNeed, b.accDone) + '</td>'; tb += '<tr>' + t + '</tr>';
         });
-        const sA = ppl.reduce((s, n) => s + getb(n).cA, 0), sB = ppl.reduce((s, n) => s + getb(n).cB, 0), sC = ppl.reduce((s, n) => s + getb(n).cC, 0), sAc = ppl.reduce((s, n) => s + getb(n).acc, 0);
-        tb += '<tr class="sub"><td colspan="2">소계</td><td>' + num(sA) + '</td><td>' + num(sB) + '</td><td>' + num(sC) + '</td><td>' + acc(sAc) + '</td></tr>';
-        TA += sA; TB += sB; TC += sC; TAcc += sAc;
+        const sA = ppl.reduce((s, n) => s + getb(n).cA, 0), sB = ppl.reduce((s, n) => s + getb(n).cB, 0), sC = ppl.reduce((s, n) => s + getb(n).cC, 0);
+        const sN = ppl.reduce((s, n) => s + getb(n).accNeed, 0), sD = ppl.reduce((s, n) => s + getb(n).accDone, 0);
+        tb += '<tr class="sub"><td colspan="2">소계</td><td>' + num(sA) + '</td><td>' + num(sB) + '</td><td>' + num(sC) + '</td><td>' + acc(sN, sD) + '</td></tr>';
+        TA += sA; TB += sB; TC += sC; TNeed += sN; TDone += sD;
       }
     }
-    tb += '<tr class="tot"><td colspan="3">합계</td><td>' + num(TA) + '</td><td>' + num(TB) + '</td><td>' + num(TC) + '</td><td>' + (TAcc === 0 ? '<b style="color:#fff">·</b>' : '<b style="color:#fff">★' + TAcc + '</b>') + '</td></tr>';
-    const colg = '<colgroup><col style="width:26px"><col style="width:52px"><col style="width:48px"><col style="width:30px"><col style="width:30px"><col style="width:30px"><col style="width:38px"></colgroup>';
+    tb += '<tr class="tot"><td colspan="3">합계</td><td>' + num(TA) + '</td><td>' + num(TB) + '</td><td>' + num(TC) + '</td><td>' + acc(TNeed, TDone, true) + '</td></tr>';
+    const colg = '<colgroup><col style="width:26px"><col style="width:52px"><col style="width:46px"><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:46px"></colgroup>';
     return '<div class="kd-cols"><div class="kd-left"><div class="kd-blk"><div class="kd-t">등급별 비중</div>' + donut(gradeRows, GC) + '</div><div class="kd-blk"><div class="kd-t">영업불가(C) 사유</div>' + donut(reasonRows, RPAL) + '</div></div><div class="kd-right"><table class="kd-tbl">' + colg + tb + '</table></div></div>';
   };
   // 대시보드 HTML 빌더 (도넛 2개 + 권역색 표). adminPeriod/adminMetric에 따라 갱신
@@ -1398,13 +1405,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               </div>
               <div style={{ textAlign: 'left', marginBottom: 14 }}>
                 {/* 담당자는 로그인 이름으로 자동 귀속 */}
-                <label
-                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 12px', borderRadius: 10, border: `1.5px solid ${accompany ? NAVY : '#e5e7eb'}`, background: accompany ? NAVY_BG : '#fff', cursor: 'pointer', marginBottom: 12 }}
-                >
-                  <input type="checkbox" checked={accompany} onChange={e => setAccompany(e.target.checked)} style={{ width: 18, height: 18, accentColor: NAVY }} />
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: accompany ? NAVY : '#374151' }}>동행 방문</span>
-                  <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>지점장·선임 동행 시 체크</span>
-                </label>
+                <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>동행</label>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                  {[['', '없음', '#64748b'], ['need', '동행필요 ★', '#b45309'], ['done', '동행완료 ●', '#111']].map(([v, lbl, col]) => (
+                    <button key={v || 'none'} onClick={() => setAccompany(v)}
+                      style={{ flex: 1, padding: '9px 3px', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${accompany === v ? NAVY : '#e5e7eb'}`, background: accompany === v ? NAVY : '#fff', color: accompany === v ? '#fff' : col }}>{lbl}</button>
+                  ))}
+                </div>
                 <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>영업 등급</label>
                 <select value={salesGrade} onChange={e => setSalesGrade(e.target.value)} style={{ ...inp }}>
                   <option value="">(등급 선택)</option>
