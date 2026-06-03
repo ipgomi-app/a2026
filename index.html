@@ -682,13 +682,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
           style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: NAVY, fontSize: 14, fontWeight: 500, cursor: 'pointer', textAlign: 'center' }}
         >← 입력 수정 / 초기화</button>
         <button
-          onClick={() => setShowSaveSheet(true)}
-          style={{ background: 'linear-gradient(135deg,#0c447c,#1565c0)', border: 'none', borderRadius: 24, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: '13px 26px', whiteSpace: 'nowrap', boxShadow: '0 3px 10px rgba(12,68,124,0.30)' }}
+          onClick={() => { if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; } setShowSaveSheet(true); }}
+          style={{ background: kppRate ? 'linear-gradient(135deg,#0c447c,#1565c0)' : '#cbd5e1', border: 'none', borderRadius: 24, color: kppRate ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 700, cursor: kppRate ? 'pointer' : 'default', padding: '13px 26px', whiteSpace: 'nowrap', boxShadow: kppRate ? '0 3px 10px rgba(12,68,124,0.30)' : 'none' }}
         >💾 저장</button>
       </div>
       <button
-        style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'center', background: 'linear-gradient(135deg,#1e40af,#2563eb)', color: '#fff', border: 'none', boxShadow: '0 3px 12px rgba(37,99,235,.35)' }}
-        onClick={() => setShowPdfModal(true)}
+        style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: kppRate ? 'pointer' : 'default', textAlign: 'center', background: kppRate ? 'linear-gradient(135deg,#1e40af,#2563eb)' : '#cbd5e1', color: kppRate ? '#fff' : '#6b7280', border: 'none', boxShadow: kppRate ? '0 3px 12px rgba(37,99,235,.35)' : 'none' }}
+        onClick={() => { if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; } setShowPdfModal(true); }}
       >
         📄 제안서 PDF 저장 / 인쇄
       </button>
