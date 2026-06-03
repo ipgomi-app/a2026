@@ -55,7 +55,7 @@ const ENC_RATES = "Y7N8Bj9z/1PjMutjyB+G1mqB1Ef2fBWf25CSpDYRYqsrjSYOJ1P5y8jmrNc0l
 const REGIONS = {"특별·광역시":["서울","세종","광주(광역)","대구","대전","부산","울산","인천"],"경기":["고양","과천","광명","광주(경기)","구리","군포","김포","남양주","동두천","부천","성남","수원","시흥","안산","안성","안양","양주","여주","오산","용인","의왕","의정부","이천","파주","평택","포천","하남","화성"],"강원":["강릉","동해","삼척","속초","원주","춘천","태백","고성군(강원)","양구군","양양군","영월군","인제군","정선군","철원군","평창군","홍천군","화천군","횡성군"],"충북":["청주","제천","충주","괴산군","단양군","보은군","영동군","옥천군","음성군","증평군","진천군"],"충남":["천안","계룡","공주","논산","당진","보령","서산","아산","금산군","부여군","서천군","예산군","청양군","태안군","홍성군"],"전북":["군산","김제","남원","익산","전주","정읍","고창군","무주군","부안군","순창군","완주군","임실군","장수군","진안군"],"전남":["광양","나주","목포","순천","여수","강진군","고흥군","곡성군","구례군","담양군","무안군","보성군","신안군","영광군","영암군","완도군","장성군","장흥군","진도군","함평군","해남군","화순군"],"경북":["경산","경주","구미","김천","문경","상주","안동","영주","영천","포항","고령군","봉화군","성주군","영덕군","영양군","예천군","의성군","울릉군","울진군","청도군","청송군","칠곡군"],"경남":["거제","김해","밀양","사천","양산","진주","창원","통영","거창군","고성군(경남)","남해군","산청군","의령군","창녕군","하동군","함안군","함양군","합천군"]};
 const TONS = ["1톤","1.4톤","2.5톤","3.5톤","3.5톤 광폭","5톤","5톤 플러스","5톤 장축","8톤","11톤","11톤 장축","14톤","18톤","25톤"];
 const DEPARTURES = ["부산","김해","양산","창원","진주","대구","구미","영천","안동","울산","포항"];
-const MANAGERS = {"경북권역":{"구미지점":["김후락","오대욱","안무진"],"대구지점":["윤귀열","박승훈","박찬현","윤정목"],"안동지점":["김원세","김강민"],"영천지점":["이기선","이상훈","이정훈"]},"부산권역":{"부산지점":["고봉재","김상훈","이현민","최승현"],"양산지점":["김재호","한상민"],"울산지점":["배종일","차수범"],"포항지점":["박훈원"]},"경남권역":{"김해지점":["문용욱","서태식","이상윤"],"제주지점":["최도용","최영수"],"진주지점":["이종근1","정준혁","권청대"],"창원지점":["이태영","허성종"]}};
+const MANAGERS = {"경북권역":{"구미지점":["김후락","오대욱","안무진"],"대구지점":["윤귀열","박승훈","박찬현","윤정목"],"안동지점":["김원세","김강민"],"영천지점":["이기선","이상훈","이정훈"],"경북권역":["서대열"]},"부산권역":{"부산지점":["고봉재","김상훈","이현민","최승현"],"양산지점":["김재호","한상민"],"울산지점":["배종일","차수범"],"포항지점":["박훈원"],"부산권역":["이민승"]},"경남권역":{"김해지점":["문용욱","서태식","이상윤"],"제주지점":["최도용","최영수"],"진주지점":["이종근1","정준혁","권청대"],"창원지점":["이태영","허성종"],"경남권역":["방기영"]}};
 const ADMIN_PW_HASH = '5f5cd0231e76cbe0c909edd24422771a45ce6f33658bcc6571b4f3c33e677641';
 const MGR_INFO = (() => { const m = {}; for (const r in MANAGERS) for (const b in MANAGERS[r]) for (const n of MANAGERS[r][b]) m[n] = { branch: b, region: r }; return m; })();
 
@@ -171,6 +171,7 @@ function KPPTransportApp() {
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
+  const [wmTime, setWmTime] = useState(() => new Date()); // 워터마크 시각
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [repName, setRepName] = useState(() => { try { return localStorage.getItem('kpp_rep_name') || ''; } catch { return ''; } });
   const [repPhone, setRepPhone] = useState(() => { try { return localStorage.getItem('kpp_rep_phone') || ''; } catch { return ''; } });
@@ -187,6 +188,7 @@ function KPPTransportApp() {
   ]);
   const [openCargo, setOpenCargo] = useState(false);
   const [openCust, setOpenCust] = useState(false);
+  useEffect(() => { const t = setInterval(() => setWmTime(new Date()), 60000); return () => clearInterval(t); }, []);
 
   const upd = (k, v) => setF(p => ({ ...p, [k]: v }));
   const tog = k => setF(p => ({ ...p, [k]: !p[k] }));
@@ -222,7 +224,7 @@ function KPPTransportApp() {
       data: f, scan: { manualRows, scanDep, scanTonIdx }
     });
     writeSaved(list);
-    logToSheet(mgrName, amount); // 공용 시트에 담당자·금액 전송
+    if (MGR_INFO[mgrName]) logToSheet(mgrName, amount); // 등록 담당자만 공용 시트 전송(관리자·미등록 제외)
     setShowSaveConfirm(false);
     setShowSaveSheet(true);
     showToast('저장되었습니다');
@@ -261,6 +263,7 @@ function KPPTransportApp() {
     }
     const byMgr = {}, byBranch = {};
     for (const r of rows) {
+      if (!MGR_INFO[r.name]) continue; // 관리자/미등록 담당자는 통계 제외
       const amt = r.amount, isCur = r.ym === curYm;
       for (const [map, key, extra] of [[byMgr, r.name, { name: r.name, branch: r.branch, region: r.region }], [byBranch, r.branch, { branch: r.branch, region: r.region }]]) {
         if (!map[key]) map[key] = { ...extra, mCnt: 0, mAmt: 0, tCnt: 0, tAmt: 0 };
@@ -268,7 +271,7 @@ function KPPTransportApp() {
         if (isCur) { map[key].mCnt++; map[key].mAmt += amt; }
       }
     }
-    return { curYm, source, total: rows.length,
+    return { curYm, source, total: Object.values(byMgr).reduce((s, r) => s + r.tCnt, 0),
       mgrRows: Object.values(byMgr).sort((a, b) => b.tAmt - a.tAmt),
       brRows: Object.values(byBranch).sort((a, b) => b.tAmt - a.tAmt) };
   }, [showAdmin, adminAuthed, sheetRows]);
@@ -664,8 +667,14 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
     </div>
   );
 
+  const wmPad = n => String(n).padStart(2, '0');
+  const wmStamp = `${wmTime.getFullYear()}-${wmPad(wmTime.getMonth() + 1)}-${wmPad(wmTime.getDate())} ${wmPad(wmTime.getHours())}:${wmPad(wmTime.getMinutes())}`;
+  const wmSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='230' height='150'><text x='10' y='82' transform='rotate(-25 115 75)' fill='rgba(12,68,124,0.10)' font-size='13' font-family='sans-serif' font-weight='600'>${(mgrName || '') + '  ' + wmStamp}</text></svg>`;
+  const wmBg = `url("data:image/svg+xml,${encodeURIComponent(wmSvg)}")`;
+
   return (
     <div style={{ maxWidth: 380, margin: '0 auto', paddingBottom: 12 }}>
+      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 99999, pointerEvents: 'none', backgroundImage: wmBg, backgroundRepeat: 'repeat' }} />
       <h2 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', margin: -1 }}>KPP 운송 견적 시스템</h2>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'linear-gradient(135deg, #0c447c 0%, #1565c0 100%)', padding: '10px 14px', boxShadow: '0 2px 8px rgba(12,68,124,0.25)' }}>
@@ -1117,6 +1126,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>담당자 (통계 귀속)</label>
                 <select value={mgrName} onChange={e => setMgrName(e.target.value)} style={{ ...inp }}>
                   <option value="">(미지정)</option>
+                  <option value="관리자">관리자 (통계 제외)</option>
                   {Object.entries(MANAGERS).map(([region, branches]) => (
                     <optgroup key={region} label={region}>
                       {Object.entries(branches).flatMap(([branch, names]) => names.map(n => (
@@ -1426,45 +1436,65 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
 // ════════════════════════ 로그인 게이트 (매입가 복호화) ════════════════════════
 function LoginGate() {
   const [unlocked, setUnlocked] = useState(false);
+  const [name, setName] = useState(() => { try { return localStorage.getItem('kpp_mgr_name') || ''; } catch { return ''; } });
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   useEffect(() => {
     try {
-      const cached = sessionStorage.getItem('kpp_rates');
-      if (cached) { applyRates(JSON.parse(cached)); setUnlocked(true); }
+      // 로그인 유지: localStorage 캐시 + 암호문 버전 일치 시 자동 진입(재배포로 단가 바뀌면 재로그인)
+      const cached = localStorage.getItem('kpp_rates');
+      if (cached && localStorage.getItem('kpp_rates_ver') === ENC_RATES.slice(0, 24)) {
+        applyRates(JSON.parse(cached)); setUnlocked(true);
+      }
     } catch {}
   }, []);
   const submit = async () => {
-    if (busy || !pw) return;
+    if (busy || !pw || !name) return;
+    const nm = name.trim();
+    if (!(MGR_INFO[nm] || nm === '관리자')) { setErr('등록되지 않은 이름입니다'); return; }
     setBusy(true); setErr('');
     try {
       const obj = await decryptRates(pw);
       applyRates(obj);
-      try { sessionStorage.setItem('kpp_rates', JSON.stringify(obj)); } catch {}
+      try {
+        localStorage.setItem('kpp_rates', JSON.stringify(obj));
+        localStorage.setItem('kpp_rates_ver', ENC_RATES.slice(0, 24));
+        localStorage.setItem('kpp_mgr_name', nm);
+      } catch {}
       setUnlocked(true);
     } catch { setErr('비밀번호가 올바르지 않습니다'); setBusy(false); }
   };
   if (unlocked) return React.createElement(KPPTransportApp);
+  const inpStyle = { width: '100%', boxSizing: 'border-box', padding: '13px 14px', fontSize: 15, border: '1.5px solid #cbd5e1', borderRadius: 10, outline: 'none', background: '#fff' };
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 24, background: 'linear-gradient(160deg,#0c447c 0%,#1565c0 100%)' }}>
       <div style={{ background: '#fff', borderRadius: 18, padding: '30px 22px', width: '100%', maxWidth: 340, boxSizing: 'border-box', boxShadow: '0 10px 40px rgba(0,0,0,0.25)' }}>
         <div style={{ textAlign: 'center', marginBottom: 22 }}>
-          <div style={{ fontSize: 11, color: '#0c447c', letterSpacing: 1, fontWeight: 700 }}>KPP · 한국파렛트풀</div>
+          <div style={{ fontSize: 11, color: '#0c447c', letterSpacing: 1, fontWeight: 700 }}>KPP 영남영업본부</div>
           <div style={{ fontSize: 19, color: '#0f172a', fontWeight: 700, marginTop: 4 }}>운송 견적 시스템</div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>🔒 비밀번호를 입력하세요</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>🔒 이름과 비밀번호를 입력하세요</div>
         </div>
+        <label style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, display: 'block', marginBottom: 5 }}>이름 (담당자)</label>
         <input
-          type="password" value={pw} autoFocus
+          type="text" value={name}
+          onChange={e => { setName(e.target.value); setErr(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+          placeholder="등록된 담당자명"
+          style={{ ...inpStyle, marginBottom: 12 }}
+        />
+        <label style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, display: 'block', marginBottom: 5 }}>비밀번호</label>
+        <input
+          type="password" value={pw}
           onChange={e => { setPw(e.target.value); setErr(''); }}
           onKeyDown={e => { if (e.key === 'Enter') submit(); }}
           placeholder="비밀번호"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '13px 14px', fontSize: 15, border: `1.5px solid ${err ? '#fca5a5' : '#cbd5e1'}`, borderRadius: 10, outline: 'none' }}
+          style={{ ...inpStyle, borderColor: err ? '#fca5a5' : '#cbd5e1' }}
         />
         {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{err}</div>}
         <button
-          onClick={submit} disabled={busy || !pw}
-          style={{ width: '100%', marginTop: 16, padding: '14px', fontSize: 15, fontWeight: 700, color: '#fff', background: (busy || !pw) ? '#93c5fd' : 'linear-gradient(135deg,#0c447c,#1565c0)', border: 'none', borderRadius: 10, cursor: (busy || !pw) ? 'default' : 'pointer' }}
+          onClick={submit} disabled={busy || !pw || !name}
+          style={{ width: '100%', marginTop: 16, padding: '14px', fontSize: 15, fontWeight: 700, color: '#fff', background: (busy || !pw || !name) ? '#93c5fd' : 'linear-gradient(135deg,#0c447c,#1565c0)', border: 'none', borderRadius: 10, cursor: (busy || !pw || !name) ? 'default' : 'pointer' }}
         >{busy ? '확인 중…' : '로그인'}</button>
       </div>
     </div>
