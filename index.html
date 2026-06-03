@@ -13,7 +13,7 @@
 <title>KPP 운송 견적</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: #f3f4f6; }
+  html, body { margin: 0; padding: 0; background: #f3f4f6; overscroll-behavior-y: contain; }
   body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
   #root { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fff; }
   input, select, textarea, button { font-family: inherit; font-size: 16px; -webkit-appearance: none; appearance: none; }
@@ -171,6 +171,9 @@ function KPPTransportApp() {
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
+  const [showExit, setShowExit] = useState(false);
+  const exitingRef = useRef(false);
+  const [showRefresh, setShowRefresh] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [repName, setRepName] = useState(() => { try { return localStorage.getItem('kpp_rep_name') || ''; } catch { return ''; } });
   const [repPhone, setRepPhone] = useState(() => { try { return localStorage.getItem('kpp_rep_phone') || ''; } catch { return ''; } });
@@ -201,6 +204,33 @@ function KPPTransportApp() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 1800); };
   useEffect(() => { try { localStorage.setItem('kpp_margin', String(margin)); } catch {} }, [margin]);
   useEffect(() => { try { localStorage.setItem('kpp_mgr_name', mgrName); } catch {} }, [mgrName]);
+  // 뒤로가기 → 종료 확인 (히스토리 트랩)
+  useEffect(() => {
+    try { window.history.pushState(null, '', window.location.href); } catch {}
+    const onPop = () => {
+      if (exitingRef.current) return;
+      try { window.history.pushState(null, '', window.location.href); } catch {}
+      setShowExit(true);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  // 당겨서 새로고침 → 확인창 (네이티브 새로고침은 overscroll-behavior로 비활성화)
+  useEffect(() => {
+    let startY = 0, pulling = false;
+    const onStart = (e) => {
+      const top = window.scrollY || document.documentElement.scrollTop || 0;
+      if (top <= 0 && e.touches && e.touches.length === 1) { startY = e.touches[0].clientY; pulling = true; }
+      else pulling = false;
+    };
+    const onMove = (e) => {
+      if (!pulling || !e.touches || !e.touches.length) return;
+      if (e.touches[0].clientY - startY > 80) { pulling = false; setShowRefresh(true); }
+    };
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
+    return () => { document.removeEventListener('touchstart', onStart); document.removeEventListener('touchmove', onMove); };
+  }, []);
   const openSaveSheet = () => setShowSaveSheet(true);
   const onPhoneSave = () => {
     setShowSaveSheet(false);
@@ -645,7 +675,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
   const chevron = (open) => ({ fontSize: 12, color: NAVY, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' });
 
   const actionBar = (
-    <div style={{ marginTop: 4 }}>
+    <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <button
           onClick={tab === 'scan' ? resetScan : resetForm}
@@ -1014,7 +1044,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   step="0.1"
                   value={marginInput}
                   onChange={e => setMarginInput(e.target.value)}
-                  placeholder="예: 5"
+                  placeholder="예 : 5.7"
                   style={{ ...inp, flex: 1, fontSize: 18, fontWeight: 700, textAlign: 'center' }}
                 />
                 <span style={{ fontSize: 18, fontWeight: 700, color: NAVY }}>%</span>
@@ -1095,6 +1125,59 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   <button onClick={() => { setShowAdmin(false); setAdminAuthed(false); }} style={{ width: '100%', marginTop: 14, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 뒤로가기 종료 확인 */}
+        {showExit && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setShowExit(false)}
+          >
+            <div
+              style={{ background: '#fff', borderRadius: 16, padding: '24px 20px 18px', maxWidth: 300, width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 26, marginBottom: 10 }}>🚪</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 18 }}>종료하시겠습니까?</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setShowExit(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}
+                >취소</button>
+                <button
+                  onClick={() => { setShowExit(false); exitingRef.current = true; try { window.history.go(-2); } catch {} try { window.close(); } catch {} }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}
+                >닫기</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 당겨서 새로고침 확인 */}
+        {showRefresh && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setShowRefresh(false)}
+          >
+            <div
+              style={{ background: '#fff', borderRadius: 16, padding: '24px 20px 18px', maxWidth: 300, width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 26, marginBottom: 10 }}>🔄</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 6 }}>새로고침하시겠습니까?</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 18 }}>입력 내용은 그대로 유지됩니다.</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setShowRefresh(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}
+                >취소</button>
+                <button
+                  onClick={() => { setShowRefresh(false); window.location.reload(); }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}
+                >새로고침</button>
+              </div>
             </div>
           </div>
         )}
