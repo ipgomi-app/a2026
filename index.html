@@ -29,6 +29,29 @@
   .selChip option { background:#fff; color:#111; font-weight:400; }
   .selChip option:checked { background:#eff6ff; color:#0c447c; font-weight:600; }
   ::-webkit-scrollbar { display: none; }
+  .kd-cols{display:flex;gap:16px;flex-wrap:wrap}
+  .kd-left{flex:1 1 200px;min-width:180px}
+  .kd-right{flex:1 1 300px;min-width:280px;overflow:auto}
+  .kd-blk{margin-bottom:14px}
+  .kd-t{font-size:13px;font-weight:800;color:#0c447c;margin-bottom:6px}
+  .kd-dw{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .kd-dw svg{width:158px;height:158px}
+  .kd-lgs{width:100%;max-height:200px;overflow:auto;border:1px solid #eef2f7;border-radius:8px;padding:6px 8px}
+  .kd-lg{display:flex;align-items:center;gap:7px;font-size:11.5px;margin:4px 0}
+  .kd-sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .kd-nm{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kd-pc{font-weight:800;color:#0c447c;flex:0 0 32px;text-align:right}
+  .kd-vl{color:#94a3b8;flex:0 0 62px;text-align:right;font-size:10.5px}
+  .kd-tbl{border-collapse:collapse;font-size:11.5px;table-layout:fixed;width:auto}
+  .kd-tbl th{background:#0c447c;color:#fff;font-weight:700;padding:6px 3px;font-size:11px}
+  .kd-tbl td{border:1px solid #e7ebf0;padding:6px 3px;text-align:center;white-space:nowrap;vertical-align:middle}
+  .kd-tbl td.reg{font-weight:800;color:#fff;writing-mode:vertical-rl;text-orientation:upright;letter-spacing:1px}
+  .kd-tbl td.br{font-weight:700;color:#334155}
+  .kd-tbl td.nm{text-align:left;padding-left:8px;font-weight:600}
+  .kd-tbl td b{color:#0c447c;font-weight:800}
+  .kd-z{color:#cbd5e1;font-weight:600}
+  .kd-tbl tr.sub td{background:#eaf2fb;font-weight:800;color:#0c447c}
+  .kd-tbl tr.tot td{background:#0c447c;color:#fff;font-weight:800}.kd-tbl tr.tot td b{color:#fff}
 </style>
 </head>
 <body>
@@ -58,6 +81,8 @@ const DEPARTURES = ["부산","김해","양산","창원","진주","대구","구�
 const MANAGERS = {"경북권역":{"구미지점":["김후락","오대욱","안무진"],"대구지점":["윤귀열","박승훈","박찬현","윤정목"],"안동지점":["김원세","김강민"],"영천지점":["이기선","이상훈","이정훈"],"경북권역":["서대열"]},"부산권역":{"부산지점":["고봉재","김상훈","이현민","최승현"],"양산지점":["김재호","한상민"],"울산지점":["배종일","차수범"],"포항지점":["박훈원"],"부산권역":["이민승"]},"경남권역":{"김해지점":["문용욱","서태식","이상윤"],"제주지점":["최도용","최영수"],"진주지점":["이종근1","정준혁","권청대"],"창원지점":["이태영","허성종"],"경남권역":["방기영"]}};
 const ADMIN_PW_HASH = '5f5cd0231e76cbe0c909edd24422771a45ce6f33658bcc6571b4f3c33e677641';
 const MGR_INFO = (() => { const m = {}; for (const r in MANAGERS) for (const b in MANAGERS[r]) for (const n of MANAGERS[r][b]) m[n] = { branch: b, region: r }; return m; })();
+const ADM_PAL = ["#0c447c","#1565c0","#2e7d32","#ef6c00","#6a1b9a","#00838f","#c62828","#558b2f","#4527a0","#ad1457","#00695c","#5d4037","#1976d2","#388e3c","#f9a825","#7b1fa2","#0097a7","#d84315","#455a64","#9e9d24","#8d6e63","#3949ab","#00acc1","#e64a19","#5e35b1","#43a047","#fb8c00","#c2185b","#00897b","#3f51b5","#7cb342"];
+const ADM_RC = {"경북권역":["#0c447c","#eef3f9"],"부산권역":["#2e7d32","#eef7ef"],"경남권역":["#8a4b00","#fbf2e7"]};
 
 // ════════════════════════ 구간 거리 (km) ════════════════════════
 const DISTANCE_DATA = {};
@@ -165,7 +190,8 @@ function KPPTransportApp() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [adminPw, setAdminPw] = useState('');
-  const [adminTab, setAdminTab] = useState('담당자'); // 통계 보기: 담당자 / 지점
+  const [adminPeriod, setAdminPeriod] = useState('m'); // m=당월, t=누계
+  const [adminMetric, setAdminMetric] = useState('c'); // c=건수, a=금액
   const [sheetRows, setSheetRows] = useState(null); // 공용 시트 통계 (null=미로드)
   const [sheetStatus, setSheetStatus] = useState('idle'); // idle|loading|ok|err
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -281,29 +307,61 @@ function KPPTransportApp() {
   const adminStats = useMemo(() => {
     const now = new Date();
     const curYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    // 시트(전사) 우선, 실패 시 이 기기 로컬 폴백
     let rows, source;
-    if (sheetRows) {
-      rows = sheetRows.map(r => { const info = MGR_INFO[r.name] || {}; return { name: r.name, branch: info.branch || '(미지정)', region: info.region || '', amount: Number(r.amount) || 0, ym: r.ym }; });
-      source = '전사(시트)';
-    } else {
-      rows = readSaved().filter(q => q.mgr && q.mgr.name).map(q => ({ name: q.mgr.name, branch: q.mgr.branch || '(미지정)', region: q.mgr.region || '', amount: q.amount || 0, ym: q.ym }));
-      source = '이 기기';
-    }
-    const byMgr = {}, byBranch = {};
+    if (sheetRows) { rows = sheetRows.map(r => ({ name: r.name, amount: Number(r.amount) || 0, ym: r.ym })); source = '전사(시트)'; }
+    else { rows = readSaved().filter(q => q.mgr && q.mgr.name).map(q => ({ name: q.mgr.name, amount: q.amount || 0, ym: q.ym })); source = '이 기기'; }
+    const per = {};
     for (const r of rows) {
-      if (!MGR_INFO[r.name]) continue; // 관리자/미등록 담당자는 통계 제외
-      const amt = r.amount, isCur = r.ym === curYm;
-      for (const [map, key, extra] of [[byMgr, r.name, { name: r.name, branch: r.branch, region: r.region }], [byBranch, r.branch, { branch: r.branch, region: r.region }]]) {
-        if (!map[key]) map[key] = { ...extra, mCnt: 0, mAmt: 0, tCnt: 0, tAmt: 0 };
-        map[key].tCnt++; map[key].tAmt += amt;
-        if (isCur) { map[key].mCnt++; map[key].mAmt += amt; }
+      const info = MGR_INFO[r.name];
+      if (!info || info.branch === info.region) continue; // 미등록·관리자·권역직속 제외
+      if (!per[r.name]) per[r.name] = { mc: 0, ma: 0, tc: 0, ta: 0 };
+      per[r.name].tc++; per[r.name].ta += r.amount;
+      if (r.ym === curYm) { per[r.name].mc++; per[r.name].ma += r.amount; }
+    }
+    return { curYm, source, per, total: Object.values(per).reduce((s, p) => s + p.tc, 0) };
+  }, [showAdmin, adminAuthed, sheetRows]);
+  // 대시보드 HTML 빌더 (도넛 2개 + 권역색 표). adminPeriod/adminMetric에 따라 갱신
+  const admDashHTML = () => {
+    const per = adminStats.per || {};
+    const amd = n => per[n] || { mc: 0, ma: 0, tc: 0, ta: 0 };
+    const P = adminPeriod, M = adminMetric;
+    const cv = d => P === 'm' ? d.mc : d.tc, av = d => P === 'm' ? d.ma : d.ta;
+    const aggBy = (mode) => {
+      const acc = {};
+      for (const reg in MANAGERS) for (const br in MANAGERS[reg]) { if (br === reg) continue; for (const n of MANAGERS[reg][br]) { const d = amd(n); const k = mode === 'b' ? br : n; if (!acc[k]) acc[k] = { key: k, cnt: 0, amt: 0 }; acc[k].cnt += cv(d); acc[k].amt += av(d); } }
+      return Object.values(acc).filter(x => x.cnt > 0).sort((a, b) => M === 'c' ? b.cnt - a.cnt : b.amt - a.amt);
+    };
+    const donut = (rows) => {
+      const val = r => M === 'c' ? r.cnt : r.amt;
+      const tot = rows.reduce((s, r) => s + val(r), 0) || 1, C = 2 * Math.PI * 70; let off = 0;
+      let segs = '<circle r="70" cx="100" cy="100" fill="none" stroke="#eef2f7" stroke-width="28"></circle>';
+      rows.forEach((r, i) => { const sg = C * val(r) / tot; segs += '<circle r="70" cx="100" cy="100" fill="none" stroke="' + ADM_PAL[i % ADM_PAL.length] + '" stroke-width="28" stroke-dasharray="' + sg.toFixed(2) + ' ' + (C - sg).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 100 100)"></circle>'; off += sg; });
+      const ctr = M === 'c' ? rows.reduce((s, r) => s + r.cnt, 0) + '건' : fmt(rows.reduce((s, r) => s + r.amt, 0) / 1000) + '천원';
+      const svg = '<svg viewBox="0 0 200 200">' + segs + '<text x="100" y="98" text-anchor="middle" style="font-size:14px;font-weight:800;fill:#0f172a">' + ctr + '</text><text x="100" y="113" text-anchor="middle" style="font-size:8.5px;fill:#94a3b8">전체</text></svg>';
+      const leg = rows.length ? rows.map((r, i) => { const pc = Math.round(val(r) / tot * 100); const v = M === 'c' ? r.cnt + '건' : fmt(r.amt / 1000) + '천원'; return '<div class="kd-lg"><span class="kd-sw" style="background:' + ADM_PAL[i % ADM_PAL.length] + '"></span><span class="kd-nm">' + r.key + '</span><span class="kd-pc">' + pc + '%</span><span class="kd-vl">' + v + '</span></div>'; }).join('') : '<div style="color:#9ca3af;font-size:12px;padding:10px;text-align:center">데이터 없음</div>';
+      return '<div class="kd-dw">' + svg + '<div class="kd-lgs">' + leg + '</div></div>';
+    };
+    const cell = (c, a) => c === 0 ? '<span class="kd-z">0건</span>' : '<b>' + c + '건</b> ' + Math.round(a / 1000).toLocaleString();
+    let tb = '<tr><th>권역</th><th>지점</th><th>담당자</th><th>이번달<br>(건/천원)</th><th>누계<br>(건/천원)</th></tr>';
+    let GMc = 0, GMa = 0, GTc = 0, GTa = 0;
+    for (const reg in MANAGERS) {
+      const brs = Object.entries(MANAGERS[reg]).filter(e => e[0] !== reg);
+      const rr = brs.reduce((s, e) => s + e[1].length + 1, 0); let fr = true;
+      for (const [br, ppl] of brs) {
+        ppl.forEach((n, i) => { const d = amd(n); let t = '';
+          if (fr) { t += '<td class="reg" rowspan="' + rr + '" style="background:' + ADM_RC[reg][0] + '">' + reg + '</td>'; fr = false; }
+          if (i === 0) { t += '<td class="br" rowspan="' + ppl.length + '" style="background:' + ADM_RC[reg][1] + '">' + br + '</td>'; }
+          t += '<td class="nm">' + n + '</td><td>' + cell(d.mc, d.ma) + '</td><td>' + cell(d.tc, d.ta) + '</td>'; tb += '<tr>' + t + '</tr>';
+        });
+        const sm = ppl.reduce((s, n) => s + amd(n).mc, 0), sma = ppl.reduce((s, n) => s + amd(n).ma, 0), st = ppl.reduce((s, n) => s + amd(n).tc, 0), sta = ppl.reduce((s, n) => s + amd(n).ta, 0);
+        tb += '<tr class="sub"><td colspan="2">소계</td><td>' + cell(sm, sma) + '</td><td>' + cell(st, sta) + '</td></tr>';
+        GMc += sm; GMa += sma; GTc += st; GTa += sta;
       }
     }
-    return { curYm, source, total: Object.values(byMgr).reduce((s, r) => s + r.tCnt, 0),
-      mgrRows: Object.values(byMgr).sort((a, b) => b.tAmt - a.tAmt),
-      brRows: Object.values(byBranch).sort((a, b) => b.tAmt - a.tAmt) };
-  }, [showAdmin, adminAuthed, sheetRows]);
+    tb += '<tr class="tot"><td colspan="3">합계</td><td>' + cell(GMc, GMa) + '</td><td>' + cell(GTc, GTa) + '</td></tr>';
+    const colg = '<colgroup><col style="width:26px"><col style="width:56px"><col style="width:52px"><col style="width:72px"><col style="width:72px"></colgroup>';
+    return '<div class="kd-cols"><div class="kd-left"><div class="kd-blk"><div class="kd-t">지점별 비중</div>' + donut(aggBy('b')) + '</div><div class="kd-blk"><div class="kd-t">담당자별 비중</div>' + donut(aggBy('n')) + '</div></div><div class="kd-right"><table class="kd-tbl">' + colg + tb + '</table></div></div>';
+  };
 
   // 입력값 임시 저장(새로고침/당겨서 새로고침 시 유지). 초기화 버튼을 누를 때만 비움.
   useEffect(() => { try { localStorage.setItem('kpp_draft', JSON.stringify(f)); } catch {} }, [f]);
@@ -1093,43 +1151,26 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 </>
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>📊 담당자/지점 통계</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>이번달 {adminStats.curYm}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span>{adminStats.source} · {sheetStatus === 'loading' ? '불러오는 중…' : adminStats.total + '건'} · 금액 천원{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬 표시)' : ''}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>📊 담당자 · 지점 통계</div>
                     <button onClick={() => { setSheetStatus('loading'); fetchSheetRows().then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
-                      style={{ marginLeft: 'auto', background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
+                      style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                    {['담당자', '지점'].map(t => (
-                      <button key={t} onClick={() => setAdminTab(t)} style={{ flex: 1, padding: '8px', borderRadius: 8, fontSize: 13, fontWeight: adminTab === t ? 700 : 500, cursor: 'pointer', background: adminTab === t ? NAVY : NAVY_BG, color: adminTab === t ? '#fff' : NAVY, border: `1px solid ${adminTab === t ? NAVY : NAVY_BORDER}` }}>{t}별</button>
-                    ))}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 132px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
+                      <option value="m">당월 ({adminStats.curYm})</option>
+                      <option value="t">누계</option>
+                    </select>
+                    <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
+                      {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
+                        <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                      <thead>
-                        <tr style={{ color: '#6b7280' }}>
-                          <th style={{ textAlign: 'left', padding: '6px 4px', borderBottom: '1px solid #e5e7eb' }}>{adminTab}</th>
-                          <th style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '1px solid #e5e7eb' }}>이번달 (건·천원)</th>
-                          <th style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '1px solid #e5e7eb' }}>누계 (건·천원)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(adminTab === '담당자' ? adminStats.mgrRows : adminStats.brRows).map((r, i) => (
-                          <tr key={i} style={{ borderBottom: '0.5px solid #f0f1f3' }}>
-                            <td style={{ padding: '7px 4px' }}>{adminTab === '담당자' ? <span>{r.name}<span style={{ color: '#9ca3af', fontSize: 10 }}> {r.branch}</span></span> : <span>{r.branch}<span style={{ color: '#9ca3af', fontSize: 10 }}> {r.region}</span></span>}</td>
-                            <td style={{ textAlign: 'right', padding: '7px 4px' }}>{r.mCnt} · {fmt(r.mAmt / 1000)}</td>
-                            <td style={{ textAlign: 'right', padding: '7px 4px', fontWeight: 600 }}>{r.tCnt} · {fmt(r.tAmt / 1000)}</td>
-                          </tr>
-                        ))}
-                        {(adminTab === '담당자' ? adminStats.mgrRows : adminStats.brRows).length === 0 && (
-                          <tr><td colSpan={3} style={{ padding: '18px 4px', textAlign: 'center', color: '#9ca3af' }}>담당자 지정 저장 내역이 없습니다</td></tr>
-                        )}
-                      </tbody>
-                    </table>
+                  <div style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 10px' }}>
+                    {adminStats.source} · {sheetStatus === 'loading' ? '불러오는 중…' : adminStats.total + '건'} · 금액 천원{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
                   </div>
+                  <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: admDashHTML() }} />
                   <button onClick={() => { setShowAdmin(false); setAdminAuthed(false); }} style={{ width: '100%', marginTop: 14, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
                 </>
               )}
