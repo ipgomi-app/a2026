@@ -157,7 +157,8 @@ function KPPTransportApp() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showLoadSheet, setShowLoadSheet] = useState(false);
   const [showMarginModal, setShowMarginModal] = useState(false);
-  const [margin, setMargin] = useState(() => { try { const v = parseFloat(localStorage.getItem('kpp_margin')); return v > 0 && v <= 100 ? v : 5; } catch { return 5; } });
+  const MARGIN_DEFAULT = 6; // 수익률 기본값(고정) — 앱시작·새로고침·초기화 시 항상 이 값
+  const [margin, setMargin] = useState(MARGIN_DEFAULT);
   const [marginInput, setMarginInput] = useState('');
   const [selCarrier, setSelCarrier] = useState(null); // 메인 결과: 선택된 운송사('YT'|'바로고'), null=미선택(둘 다 표시)
   const [mgrName, setMgrName] = useState(() => { try { return localStorage.getItem('kpp_mgr_name') || ''; } catch { return ''; } });
@@ -203,7 +204,6 @@ function KPPTransportApp() {
 
   // ── 폰 저장 / 불러오기 ──
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 1800); };
-  useEffect(() => { try { localStorage.setItem('kpp_margin', String(margin)); } catch {} }, [margin]);
   useEffect(() => { try { localStorage.setItem('kpp_mgr_name', mgrName); } catch {} }, [mgrName]);
   // 뒤로가기 → 종료 확인 (히스토리 트랩)
   useEffect(() => {
@@ -307,7 +307,7 @@ function KPPTransportApp() {
 
   // 입력값 임시 저장(새로고침/당겨서 새로고침 시 유지). 초기화 버튼을 누를 때만 비움.
   useEffect(() => { try { localStorage.setItem('kpp_draft', JSON.stringify(f)); } catch {} }, [f]);
-  const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); };
+  const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); setMargin(MARGIN_DEFAULT); };
   const resetScan = () => {
     setManualRows([
       { region: '', dest: '', rate: '' },
@@ -318,6 +318,7 @@ function KPPTransportApp() {
     ]);
     setScanDep('부산');
     setScanTonIdx(3);
+    setMargin(MARGIN_DEFAULT);
   };
   const generatePdf = () => {
     if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
