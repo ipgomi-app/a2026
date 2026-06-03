@@ -1,5 +1,5 @@
 // KPP 운송견적 PWA 서비스워커
-const CACHE = 'kpp-quote-v1';
+const CACHE = 'kpp-quote-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -32,12 +32,24 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Apps Script(통계)는 항상 네트워크 — 캐시하지 않음
   if (url.hostname.indexOf('script.google') !== -1) return;
-  // 앱 셸/리소스: 캐시 우선, 없으면 네트워크 후 캐시 저장
-  e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request).then(resp => {
-      const copy = resp.clone();
-      caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
-      return resp;
-    }).catch(() => hit))
-  );
+  const isDoc = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('manifest.json');
+  if (isDoc) {
+    // HTML/매니페스트: 네트워크 우선(재배포 즉시 반영), 오프라인 시 캐시
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return resp;
+      }).catch(() => caches.match(e.request))
+    );
+  } else {
+    // 정적 자원(아이콘·CDN 라이브러리): 캐시 우선
+    e.respondWith(
+      caches.match(e.request).then(hit => hit || fetch(e.request).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return resp;
+      }).catch(() => hit))
+    );
+  }
 });
