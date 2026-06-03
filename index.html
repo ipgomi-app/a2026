@@ -386,23 +386,28 @@ function KPPTransportApp() {
     let gA = blankAgg(), gB = blankAgg(), gC = blankAgg();
     function blankAgg() { return { c: 0, a: 0 }; }
     const reasons = { '단가문제': { c: 0, a: 0 }, '지인업체': { c: 0, a: 0 }, '조건문제': { c: 0, a: 0 } };
-    names.forEach(n => { const b = getb(n); gA.c += b.cA; gA.a += b.aA; gB.c += b.cB; gB.a += b.aB; gC.c += b.cC; gC.a += b.aC; for (const k in reasons) reasons[k].c += b.r[k]; });
-    const donut = (rows, palMap) => {
-      const val = r => M === 'c' ? r.cnt : r.amt;
+    let accNeedT = 0, accDoneT = 0;
+    names.forEach(n => { const b = getb(n); gA.c += b.cA; gA.a += b.aA; gB.c += b.cB; gB.a += b.aB; gC.c += b.cC; gC.a += b.aC; accNeedT += b.accNeed; accDoneT += b.accDone; for (const k in reasons) reasons[k].c += b.r[k]; });
+    const donut = (rows, palMap, fc) => {
+      const useC = fc || M === 'c';
+      const val = r => useC ? r.cnt : r.amt;
       const nz = rows.filter(r => r.cnt > 0).sort((a, b) => val(b) - val(a));
       const zr = rows.filter(r => r.cnt === 0);
       const tot = nz.reduce((s, r) => s + val(r), 0) || 1, C = 2 * Math.PI * 70; let off = 0;
       let segs = '<circle r="70" cx="100" cy="100" fill="none" stroke="#eef2f7" stroke-width="28"></circle>';
       nz.forEach((r) => { const sg = C * val(r) / tot; segs += '<circle r="70" cx="100" cy="100" fill="none" stroke="' + (palMap[r.k] || '#64748b') + '" stroke-width="28" stroke-dasharray="' + sg.toFixed(2) + ' ' + (C - sg).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 100 100)"></circle>'; off += sg; });
-      const ctr = M === 'c' ? nz.reduce((s, r) => s + r.cnt, 0) + '건' : fmt(nz.reduce((s, r) => s + r.amt, 0) / 1000) + '천원';
+      const ctr = useC ? nz.reduce((s, r) => s + r.cnt, 0) + '건' : fmt(nz.reduce((s, r) => s + r.amt, 0) / 1000) + '천원';
       const svg = '<svg viewBox="0 0 200 200">' + segs + '<text x="100" y="98" text-anchor="middle" style="font-size:14px;font-weight:800;fill:#0f172a">' + ctr + '</text><text x="100" y="113" text-anchor="middle" style="font-size:8.5px;fill:#94a3b8">전체</text></svg>';
-      const lz = nz.map(r => { const pc = Math.round(val(r) / tot * 100); const v = M === 'c' ? r.cnt + '건' : fmt(r.amt / 1000); return '<div class="kd-lg"><span class="kd-sw" style="background:' + (palMap[r.k] || '#64748b') + '"></span><span class="kd-nm">' + r.label + '</span><span class="kd-pc">' + pc + '% <small>(' + v + ')</small></span></div>'; }).join('');
+      const lz = nz.map(r => { const pc = Math.round(val(r) / tot * 100); const v = useC ? r.cnt + '건' : fmt(r.amt / 1000); return '<div class="kd-lg"><span class="kd-sw" style="background:' + (palMap[r.k] || '#64748b') + '"></span><span class="kd-nm">' + r.label + '</span><span class="kd-pc">' + pc + '% <small>(' + v + ')</small></span></div>'; }).join('');
       const lzz = zr.map(r => '<div class="kd-lg"><span class="kd-sw" style="background:#e2e8f0"></span><span class="kd-nm" style="color:#9ca3af">' + r.label + '</span><span class="kd-pc" style="color:#cbd5e1;font-weight:600">없음</span></div>').join('');
       return '<div class="kd-dw">' + svg + '<div class="kd-lgs">' + lz + lzz + '</div></div>';
     };
     const gradeRows = [{ k: 'A', label: GLB.A, cnt: gA.c, amt: gA.a }, { k: 'B', label: GLB.B, cnt: gB.c, amt: gB.a }, { k: 'C', label: GLB.C, cnt: gC.c, amt: gC.a }];
     const RPAL = { '단가문제': '#b91c1c', '지인업체': '#7b1fa2', '조건문제': '#00695c' };
     const reasonRows = Object.keys(reasons).map(k => ({ k, label: k, cnt: reasons[k].c, amt: reasons[k].a }));
+    // 동행 비중 도넛 (완료● vs 필요★) — 건수 기준 고정
+    const ACCPAL = { done: '#334155', need: '#d97706' };
+    const accRows = [{ k: 'done', label: '동행완료 ●', cnt: accDoneT, amt: accDoneT }, { k: 'need', label: '동행필요 ★', cnt: accNeedT, amt: accNeedT }];
     // 표: 권역/지점/담당자 · A/B/C · 동행(●완료) · 동행필요(★)
     const num = (v) => v === 0 ? '<span class="kd-z">·</span>' : '<b>' + v + '</b>';
     // 동행/동행필요 각 칸: 값 있으면 심볼+수, 없으면 ·
@@ -426,7 +431,7 @@ function KPPTransportApp() {
     }
     tb += '<tr class="tot"><td colspan="3">합계</td><td>' + num(TA) + '</td><td>' + num(TB) + '</td><td>' + num(TC) + '</td><td>' + mk(TDone, '●', '#111', true) + '</td><td>' + mk(TNeed, '★', '#b45309', true) + '</td></tr>';
     const colg = '<colgroup><col style="width:24px"><col style="width:46px"><col style="width:42px"><col style="width:24px"><col style="width:24px"><col style="width:24px"><col style="width:38px"><col style="width:40px"></colgroup>';
-    return '<div class="kd-cols"><div class="kd-left"><div class="kd-blk"><div class="kd-t">등급별 비중</div>' + donut(gradeRows, GC) + '</div><div class="kd-blk"><div class="kd-t">영업불가(C) 사유</div>' + donut(reasonRows, RPAL) + '</div></div><div class="kd-right"><table class="kd-tbl">' + colg + tb + '</table></div></div>';
+    return '<div class="kd-cols"><div class="kd-left"><div class="kd-blk"><div class="kd-t">등급별 비중</div>' + donut(gradeRows, GC) + '</div><div class="kd-blk"><div class="kd-t">동행 비중 (완료 vs 필요)</div>' + donut(accRows, ACCPAL, true) + '</div><div class="kd-blk"><div class="kd-t">영업불가(C) 사유</div>' + donut(reasonRows, RPAL) + '</div></div><div class="kd-right"><table class="kd-tbl">' + colg + tb + '</table></div></div>';
   };
   // 대시보드 HTML 빌더 (도넛 2개 + 권역색 표). adminPeriod/adminMetric에 따라 갱신
   const admDashHTML = () => {
