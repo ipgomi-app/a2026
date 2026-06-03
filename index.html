@@ -111,11 +111,11 @@ function applyRates(obj) { RATE_DATA = obj.RATE_DATA; BAROGO_RATE_DATA = obj.BAR
 // ════════════════════════ 공용 통계 (Google Sheets / Apps Script) ════════════════════════
 const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzk4uEiAcEQK9eJF7i0O1g3dRMjag4gaJMX34ZUtsguIPZr2CzAZzlk5PbtLLO6ATEn/exec';
 const SHEET_TOKEN = 'kpp-stats-2026';
-// 견적 저장 시 [담당자, 금액]만 전송 (fire-and-forget)
-function logToSheet(name, amount) {
-  if (!SHEET_WEBAPP_URL || !name) return;
+// 견적 저장 시 [등급, 동행, 담당자, 업체명, 금액, 사유] 전송 (fire-and-forget)
+function logToSheet(p) {
+  if (!SHEET_WEBAPP_URL || !p || !p.name) return;
   try {
-    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: name, amount: amount }) });
+    fetch(SHEET_WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: SHEET_TOKEN, name: p.name, amount: p.amount || 0, grade: p.grade || '', accompany: !!p.accompany, company: p.company || '', reason: p.reason || '' }) });
   } catch (e) {}
 }
 // 통계 조회 (JSONP — Apps Script CORS 우회)
@@ -300,7 +300,7 @@ function KPPTransportApp() {
       let logged = [];
       try { logged = JSON.parse(localStorage.getItem('kpp_sheet_log') || '[]'); } catch {}
       if (logged.indexOf(dupKey) === -1) {
-        logToSheet(mgrName, amount);
+        logToSheet({ name: mgrName, amount, grade: salesGrade, accompany, company, reason: salesGrade === 'C' ? cReason : '' });
         logged.push(dupKey);
         try { localStorage.setItem('kpp_sheet_log', JSON.stringify(logged.slice(-500))); } catch {}
       } // 중복 시 시트 전송만 생략(로컬 저장은 정상 진행)
@@ -346,6 +346,81 @@ function KPPTransportApp() {
     }
     return { curYm, source, per, total: Object.values(per).reduce((s, p) => s + p.tc, 0) };
   }, [showAdmin, adminAuthed, sheetRows]);
+  // 영업 통계(등급 A/B/C·동행·C사유) — 시트 우선/로컬 폴백
+  const salesStats = useMemo(() => {
+    const now = new Date();
+    const curYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    let rows, source;
+    if (sheetRows) { rows = sheetRows.map(r => ({ name: r.name, amount: Number(r.amount) || 0, ym: r.ym, grade: r.grade || '', accompany: !!r.accompany, reason: r.reason || '' })); source = '전사(시트)'; }
+    else { rows = readSaved().filter(q => q.mgr && q.mgr.name).map(q => ({ name: q.mgr.name, amount: q.amount || 0, ym: q.ym, grade: (q.sales && q.sales.grade) || '', accompany: !!(q.sales && q.sales.accompany), reason: (q.sales && q.sales.reason) || '' })); source = '이 기기'; }
+    const blank = () => ({ cA: 0, cB: 0, cC: 0, aA: 0, aB: 0, aC: 0, acc: 0, r: { '단가문제': 0, '지인업체': 0, '조건문제': 0 } });
+    const per = {};
+    let total = 0;
+    for (const r of rows) {
+      const info = MGR_INFO[r.name];
+      if (!info || info.branch === info.region) continue; // 미등록·관리자·권역직속 제외
+      if (!r.grade) continue; // 등급 미입력 행 제외
+      total++;
+      if (!per[r.name]) per[r.name] = { m: blank(), t: blank() };
+      const add = (b) => { b['c' + r.grade]++; b['a' + r.grade] += r.amount; if (r.accompany) b.acc++; if (r.grade === 'C' && b.r[r.reason] != null) b.r[r.reason]++; };
+      add(per[r.name].t);
+      if (r.ym === curYm) add(per[r.name].m);
+    }
+    return { curYm, source, per, total };
+  }, [showAdmin, adminAuthed, sheetRows]);
+  // 영업 통계 대시보드 HTML (등급 도넛 + C사유 도넛 + 담당자/지점 표)
+  const salesDashHTML = () => {
+    const per = salesStats.per || {};
+    const P = adminPeriod, M = adminMetric;
+    const names = Object.keys(MGR_INFO).filter(n => MGR_INFO[n].branch !== MGR_INFO[n].region);
+    const getb = (n) => (per[n] ? per[n][P === 'm' ? 'm' : 't'] : null) || { cA: 0, cB: 0, cC: 0, aA: 0, aB: 0, aC: 0, acc: 0, r: { '단가문제': 0, '지인업체': 0, '조건문제': 0 } };
+    // 등급 비중
+    const GC = { A: '#15803d', B: '#b45309', C: '#b91c1c' };
+    const GLB = { A: 'A 가능성↑', B: 'B 영업지속', C: 'C 영업불가' };
+    let gA = blankAgg(), gB = blankAgg(), gC = blankAgg();
+    function blankAgg() { return { c: 0, a: 0 }; }
+    const reasons = { '단가문제': { c: 0, a: 0 }, '지인업체': { c: 0, a: 0 }, '조건문제': { c: 0, a: 0 } };
+    let accTot = 0;
+    names.forEach(n => { const b = getb(n); gA.c += b.cA; gA.a += b.aA; gB.c += b.cB; gB.a += b.aB; gC.c += b.cC; gC.a += b.aC; accTot += b.acc; for (const k in reasons) reasons[k].c += b.r[k]; });
+    const donut = (rows, palMap) => {
+      const val = r => M === 'c' ? r.cnt : r.amt;
+      const nz = rows.filter(r => r.cnt > 0).sort((a, b) => val(b) - val(a));
+      const zr = rows.filter(r => r.cnt === 0);
+      const tot = nz.reduce((s, r) => s + val(r), 0) || 1, C = 2 * Math.PI * 70; let off = 0;
+      let segs = '<circle r="70" cx="100" cy="100" fill="none" stroke="#eef2f7" stroke-width="28"></circle>';
+      nz.forEach((r) => { const sg = C * val(r) / tot; segs += '<circle r="70" cx="100" cy="100" fill="none" stroke="' + (palMap[r.k] || '#64748b') + '" stroke-width="28" stroke-dasharray="' + sg.toFixed(2) + ' ' + (C - sg).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 100 100)"></circle>'; off += sg; });
+      const ctr = M === 'c' ? nz.reduce((s, r) => s + r.cnt, 0) + '건' : fmt(nz.reduce((s, r) => s + r.amt, 0) / 1000) + '천원';
+      const svg = '<svg viewBox="0 0 200 200">' + segs + '<text x="100" y="98" text-anchor="middle" style="font-size:14px;font-weight:800;fill:#0f172a">' + ctr + '</text><text x="100" y="113" text-anchor="middle" style="font-size:8.5px;fill:#94a3b8">전체</text></svg>';
+      const lz = nz.map(r => { const pc = Math.round(val(r) / tot * 100); const v = M === 'c' ? r.cnt + '건' : fmt(r.amt / 1000); return '<div class="kd-lg"><span class="kd-sw" style="background:' + (palMap[r.k] || '#64748b') + '"></span><span class="kd-nm">' + r.label + '</span><span class="kd-pc">' + pc + '% <small>(' + v + ')</small></span></div>'; }).join('');
+      const lzz = zr.map(r => '<div class="kd-lg"><span class="kd-sw" style="background:#e2e8f0"></span><span class="kd-nm" style="color:#9ca3af">' + r.label + '</span><span class="kd-pc" style="color:#cbd5e1;font-weight:600">없음</span></div>').join('');
+      return '<div class="kd-dw">' + svg + '<div class="kd-lgs">' + lz + lzz + '</div></div>';
+    };
+    const gradeRows = [{ k: 'A', label: GLB.A, cnt: gA.c, amt: gA.a }, { k: 'B', label: GLB.B, cnt: gB.c, amt: gB.a }, { k: 'C', label: GLB.C, cnt: gC.c, amt: gC.a }];
+    const RPAL = { '단가문제': '#b91c1c', '지인업체': '#7b1fa2', '조건문제': '#00695c' };
+    const reasonRows = Object.keys(reasons).map(k => ({ k, label: k, cnt: reasons[k].c, amt: reasons[k].a }));
+    // 표: 권역/지점/담당자 · A/B/C · 동행(★)
+    const num = (v) => v === 0 ? '<span class="kd-z">·</span>' : '<b>' + v + '</b>';
+    const acc = (v) => v === 0 ? '<span class="kd-z">·</span>' : '<b style="color:#b45309">★' + v + '</b>';
+    let tb = '<tr><th>권역</th><th>지점</th><th>담당자</th><th>A</th><th>B</th><th>C</th><th>동행</th></tr>';
+    let TA = 0, TB = 0, TC = 0, TAcc = 0;
+    for (const reg in MANAGERS) {
+      const brs = Object.entries(MANAGERS[reg]).filter(e => e[0] !== reg);
+      const rr = brs.reduce((s, e) => s + e[1].length + 1, 0); let fr = true;
+      for (const [br, ppl] of brs) {
+        ppl.forEach((n, i) => { const b = getb(n); let t = '';
+          if (fr) { t += '<td class="reg" rowspan="' + rr + '" style="background:' + ADM_RC[reg][0] + '">' + reg + '</td>'; fr = false; }
+          if (i === 0) { t += '<td class="br" rowspan="' + ppl.length + '" style="background:' + ADM_RC[reg][1] + '">' + br + '</td>'; }
+          t += '<td class="nm">' + n + '</td><td>' + num(b.cA) + '</td><td>' + num(b.cB) + '</td><td>' + num(b.cC) + '</td><td>' + acc(b.acc) + '</td>'; tb += '<tr>' + t + '</tr>';
+        });
+        const sA = ppl.reduce((s, n) => s + getb(n).cA, 0), sB = ppl.reduce((s, n) => s + getb(n).cB, 0), sC = ppl.reduce((s, n) => s + getb(n).cC, 0), sAc = ppl.reduce((s, n) => s + getb(n).acc, 0);
+        tb += '<tr class="sub"><td colspan="2">소계</td><td>' + num(sA) + '</td><td>' + num(sB) + '</td><td>' + num(sC) + '</td><td>' + acc(sAc) + '</td></tr>';
+        TA += sA; TB += sB; TC += sC; TAcc += sAc;
+      }
+    }
+    tb += '<tr class="tot"><td colspan="3">합계</td><td>' + num(TA) + '</td><td>' + num(TB) + '</td><td>' + num(TC) + '</td><td>' + (TAcc === 0 ? '<b style="color:#fff">·</b>' : '<b style="color:#fff">★' + TAcc + '</b>') + '</td></tr>';
+    const colg = '<colgroup><col style="width:26px"><col style="width:52px"><col style="width:48px"><col style="width:30px"><col style="width:30px"><col style="width:30px"><col style="width:38px"></colgroup>';
+    return '<div class="kd-cols"><div class="kd-left"><div class="kd-blk"><div class="kd-t">등급별 비중</div>' + donut(gradeRows, GC) + '</div><div class="kd-blk"><div class="kd-t">영업불가(C) 사유</div>' + donut(reasonRows, RPAL) + '</div></div><div class="kd-right"><table class="kd-tbl">' + colg + tb + '</table></div></div>';
+  };
   // 대시보드 HTML 빌더 (도넛 2개 + 권역색 표). adminPeriod/adminMetric에 따라 갱신
   const admDashHTML = () => {
     const per = adminStats.per || {};
@@ -1182,10 +1257,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 <>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>🛠️ 관리자 통계</div>
-                    {adminTab === 'mgr' && (
-                      <button onClick={() => { setSheetStatus('loading'); fetchSheetRows().then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
-                        style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
-                    )}
+                    <button onClick={() => { setSheetStatus('loading'); fetchSheetRows().then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
+                      style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
                   </div>
                   {/* 카드 분리: 담당자·지점 통계 / 영업 통계 */}
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -1194,33 +1267,21 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         style={{ flex: 1, padding: '11px 6px', borderRadius: 11, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${adminTab === k ? NAVY : '#e5e7eb'}`, background: adminTab === k ? NAVY : '#fff', color: adminTab === k ? '#fff' : '#64748b' }}>{lbl}</button>
                     ))}
                   </div>
-                  {adminTab === 'mgr' ? (
-                    <>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 132px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
-                          <option value="m">당월 ({adminStats.curYm})</option>
-                          <option value="t">누계</option>
-                        </select>
-                        <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
-                          {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
-                            <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 10px' }}>
-                        {adminStats.source} · {sheetStatus === 'loading' ? '불러오는 중…' : adminStats.total + '건'} · 금액 천원{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
-                      </div>
-                      <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: admDashHTML() }} />
-                    </>
-                  ) : (
-                    <div style={{ overflowY: 'auto', padding: '28px 16px', textAlign: 'center', border: '1.5px dashed #d1d5db', borderRadius: 12, background: '#f9fafb' }}>
-                      <div style={{ fontSize: 30, marginBottom: 10 }}>📈</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 6 }}>영업 통계 (준비 중)</div>
-                      <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
-                        폰 저장 시 입력하는 <b style={{ color: '#6b7280' }}>영업 등급(A/B/C)</b>·<b style={{ color: '#6b7280' }}>동행 방문</b> 데이터를<br />집계해 보여줄 예정입니다.
-                      </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 132px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
+                      <option value="m">당월 ({adminStats.curYm})</option>
+                      <option value="t">누계</option>
+                    </select>
+                    <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
+                      {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
+                        <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 10px' }}>
+                    {(adminTab === 'mgr' ? adminStats : salesStats).source} · {sheetStatus === 'loading' ? '불러오는 중…' : (adminTab === 'mgr' ? adminStats.total : salesStats.total) + '건'}{adminTab === 'mgr' ? ' · 금액 천원' : ' · 영업 등급'}{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
+                  </div>
+                  <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: adminTab === 'mgr' ? admDashHTML() : salesDashHTML() }} />
                   <button onClick={() => { setShowAdmin(false); setAdminAuthed(false); setAdminTab('mgr'); }} style={{ width: '100%', marginTop: 14, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
                 </>
               )}
