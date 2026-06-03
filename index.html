@@ -171,7 +171,6 @@ function KPPTransportApp() {
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
-  const [wmTime, setWmTime] = useState(() => new Date()); // 워터마크 시각
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [repName, setRepName] = useState(() => { try { return localStorage.getItem('kpp_rep_name') || ''; } catch { return ''; } });
   const [repPhone, setRepPhone] = useState(() => { try { return localStorage.getItem('kpp_rep_phone') || ''; } catch { return ''; } });
@@ -188,7 +187,6 @@ function KPPTransportApp() {
   ]);
   const [openCargo, setOpenCargo] = useState(false);
   const [openCust, setOpenCust] = useState(false);
-  useEffect(() => { const t = setInterval(() => setWmTime(new Date()), 60000); return () => clearInterval(t); }, []);
 
   const upd = (k, v) => setF(p => ({ ...p, [k]: v }));
   const tog = k => setF(p => ({ ...p, [k]: !p[k] }));
@@ -667,14 +665,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
     </div>
   );
 
-  const wmPad = n => String(n).padStart(2, '0');
-  const wmStamp = `${wmTime.getFullYear()}-${wmPad(wmTime.getMonth() + 1)}-${wmPad(wmTime.getDate())} ${wmPad(wmTime.getHours())}:${wmPad(wmTime.getMinutes())}`;
-  const wmSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='230' height='150'><text x='10' y='82' transform='rotate(-25 115 75)' fill='rgba(12,68,124,0.10)' font-size='13' font-family='sans-serif' font-weight='600'>${(mgrName || '') + '  ' + wmStamp}</text></svg>`;
-  const wmBg = `url("data:image/svg+xml,${encodeURIComponent(wmSvg)}")`;
-
   return (
     <div style={{ maxWidth: 380, margin: '0 auto', paddingBottom: 12 }}>
-      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 99999, pointerEvents: 'none', backgroundImage: wmBg, backgroundRepeat: 'repeat' }} />
       <h2 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', margin: -1 }}>KPP 운송 견적 시스템</h2>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'linear-gradient(135deg, #0c447c 0%, #1565c0 100%)', padding: '10px 14px', boxShadow: '0 2px 8px rgba(12,68,124,0.25)' }}>
