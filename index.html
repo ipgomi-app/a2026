@@ -214,7 +214,7 @@ function KPPTransportApp() {
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false); // 기존 견적 갱신 확인
   const [updateWhen, setUpdateWhen] = useState('');
   const [showCodeCheck, setShowCodeCheck] = useState(false); // 업체명 일치·코드 불일치 재확인
-  const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCode: '', inputCode: '' });
+  const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCompany: '', existCode: '', inputCode: '' });
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
@@ -300,10 +300,15 @@ function KPPTransportApp() {
     // 같은 코드의 기존 견적 → 갱신 확인
     const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
     if (idx !== -1 && action !== 'update') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
-    // 코드는 다른데 업체명이 정확히 일치 → 코드 오입력 가능성 안내(코드가 중복 판별 기준)
+    // 코드는 다른데 업체명이 같거나 유사(앞 2자리 일치) → 코드 오입력 가능성 안내(코드가 중복 판별 기준)
     if (idx === -1 && action !== 'force') {
-      const nameMatch = list.find(x => x.company.trim() === company && (x.code || '').trim() !== code);
-      if (nameMatch) { setCodeCheckInfo({ company, existCode: (nameMatch.code || '').trim(), inputCode: code }); setShowCodeCheck(true); return; }
+      const f2 = company.slice(0, 2);
+      const nameMatch = list.find(x => {
+        if ((x.code || '').trim() === code) return false;
+        const xc = (x.company || '').trim();
+        return xc === company || (f2.length >= 2 && xc.slice(0, 2) === f2);
+      });
+      if (nameMatch) { setCodeCheckInfo({ company, existCompany: (nameMatch.company || '').trim(), existCode: (nameMatch.code || '').trim(), inputCode: code }); setShowCodeCheck(true); return; }
     }
     const rec = {
       id: idx !== -1 ? list[idx].id : Date.now(), company, code,
@@ -1499,12 +1504,12 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
             >
               <div style={{ fontSize: 26, marginBottom: 10 }}>⚠️</div>
               <div style={{ fontSize: 14.5, fontWeight: 700, color: '#111', marginBottom: 8, lineHeight: 1.5 }}>
-                같은 업체명의 기존 견적이 있는데 <b style={{ color: '#dc2626' }}>코드가 다릅니다</b>
+                기존 업체와 <b style={{ color: '#dc2626' }}>유사한 업체명</b>입니다
               </div>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 14, lineHeight: 1.7 }}>
-                <b style={{ color: NAVY }}>{codeCheckInfo.company}</b><br />
-                기존 코드 <b style={{ color: '#475569' }}>{codeCheckInfo.existCode}</b> · 입력 <b style={{ color: '#b45309' }}>{codeCheckInfo.inputCode}</b>
-                <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 6 }}>중복은 코드로 걸러집니다. 코드를 다시 확인하세요.</div>
+                입력 <b style={{ color: NAVY }}>{codeCheckInfo.company}</b> ({codeCheckInfo.inputCode})<br />
+                기존 <b style={{ color: '#475569' }}>{codeCheckInfo.existCompany}</b> ({codeCheckInfo.existCode})
+                <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 6 }}>코드가 다릅니다. 코드를 다시 확인하세요.</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
