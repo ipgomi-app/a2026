@@ -85,6 +85,13 @@ const ADMIN_PW_HASH = '5f5cd0231e76cbe0c909edd24422771a45ce6f33658bcc6571b4f3c33
 const MGR_INFO = (() => { const m = {}; for (const r in MANAGERS) for (const b in MANAGERS[r]) for (const n of MANAGERS[r][b]) m[n] = { branch: b, region: r }; return m; })();
 const ADM_PAL = ["#0c447c","#1565c0","#2e7d32","#ef6c00","#6a1b9a","#00838f","#c62828","#558b2f","#4527a0","#ad1457","#00695c","#5d4037","#1976d2","#388e3c","#f9a825","#7b1fa2","#0097a7","#d84315","#455a64","#9e9d24","#8d6e63","#3949ab","#00acc1","#e64a19","#5e35b1","#43a047","#fb8c00","#c2185b","#00897b","#3f51b5","#7cb342"];
 const ADM_RC = {"경북권역":["#0c447c","#eef3f9"],"부산권역":["#2e7d32","#eef7ef"],"경남권역":["#8a4b00","#fbf2e7"]};
+// 영업 등급(폰 저장 시 입력) — A:가능성↑/단가우위, B:영업지속/재견적필요, C:영업불가(사유선택)
+const SALES_GRADES = [
+  { v: 'A', label: 'A · 가능성↑ (단가우위)', color: '#15803d' },
+  { v: 'B', label: 'B · 영업지속 (재견적필요)', color: '#b45309' },
+  { v: 'C', label: 'C · 영업불가', color: '#b91c1c' },
+];
+const C_REASONS = ['단가문제', '지인업체', '조건문제'];
 
 // ════════════════════════ 구간 거리 (km) ════════════════════════
 const DISTANCE_DATA = {};
@@ -194,6 +201,10 @@ function KPPTransportApp() {
   const [adminPw, setAdminPw] = useState('');
   const [adminPeriod, setAdminPeriod] = useState('m'); // m=당월, t=누계
   const [adminMetric, setAdminMetric] = useState('c'); // c=건수, a=금액
+  const [adminTab, setAdminTab] = useState('mgr'); // mgr=담당자·지점, sales=영업 통계(표시만)
+  const [accompany, setAccompany] = useState(false); // 동행 방문 여부
+  const [salesGrade, setSalesGrade] = useState(''); // 영업 등급 A/B/C
+  const [cReason, setCReason] = useState('단가문제'); // C등급 사유
   const [sheetRows, setSheetRows] = useState(null); // 공용 시트 통계 (null=미로드)
   const [sheetStatus, setSheetStatus] = useState('idle'); // idle|loading|ok|err
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -273,16 +284,29 @@ function KPPTransportApp() {
     const amount = kppRate != null ? kppRate : (avail.length ? Math.min(...avail) : 0);
     const now = new Date();
     const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const company = f.company.trim();
     list.push({
-      id: Date.now(), company: f.company.trim(), savedAt: now.toLocaleDateString('ko-KR'),
+      id: Date.now(), company, savedAt: now.toLocaleDateString('ko-KR'),
       ts: now.getTime(), ym,
       mgr: { name: mgrName, branch: info.branch || '', region: info.region || '' },
       carrier: effCarrier || '', amount,
+      sales: { grade: salesGrade, reason: salesGrade === 'C' ? cReason : '', accompany },
       data: f, scan: { manualRows, scanDep, scanTonIdx }
     });
     writeSaved(list);
-    if (MGR_INFO[mgrName]) logToSheet(mgrName, amount); // 등록 담당자만 공용 시트 전송(관리자·미등록 제외)
+    // 공용 시트(방문) 카운트 — 1차 중복방지: 같은 담당자+고객사+월은 1회만 전송
+    if (MGR_INFO[mgrName]) {
+      const dupKey = mgrName + '|' + company + '|' + ym;
+      let logged = [];
+      try { logged = JSON.parse(localStorage.getItem('kpp_sheet_log') || '[]'); } catch {}
+      if (logged.indexOf(dupKey) === -1) {
+        logToSheet(mgrName, amount);
+        logged.push(dupKey);
+        try { localStorage.setItem('kpp_sheet_log', JSON.stringify(logged.slice(-500))); } catch {}
+      } // 중복 시 시트 전송만 생략(로컬 저장은 정상 진행)
+    }
     setShowSaveConfirm(false);
+    setSalesGrade(''); setCReason('단가문제'); setAccompany(false);
     setShowSaveSheet(true);
     showToast('저장되었습니다');
   };
@@ -1156,27 +1180,48 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 </>
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>📊 담당자 · 지점 통계</div>
-                    <button onClick={() => { setSheetStatus('loading'); fetchSheetRows().then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
-                      style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>🛠️ 관리자 통계</div>
+                    {adminTab === 'mgr' && (
+                      <button onClick={() => { setSheetStatus('loading'); fetchSheetRows().then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
+                        style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 132px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
-                      <option value="m">당월 ({adminStats.curYm})</option>
-                      <option value="t">누계</option>
-                    </select>
-                    <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
-                      {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
-                        <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
-                      ))}
+                  {/* 카드 분리: 담당자·지점 통계 / 영업 통계 */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    {[['mgr', '📊 담당자·지점 통계'], ['sales', '📈 영업 통계']].map(([k, lbl]) => (
+                      <button key={k} onClick={() => setAdminTab(k)}
+                        style={{ flex: 1, padding: '11px 6px', borderRadius: 11, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${adminTab === k ? NAVY : '#e5e7eb'}`, background: adminTab === k ? NAVY : '#fff', color: adminTab === k ? '#fff' : '#64748b' }}>{lbl}</button>
+                    ))}
+                  </div>
+                  {adminTab === 'mgr' ? (
+                    <>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 132px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
+                          <option value="m">당월 ({adminStats.curYm})</option>
+                          <option value="t">누계</option>
+                        </select>
+                        <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
+                          {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
+                            <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 10px' }}>
+                        {adminStats.source} · {sheetStatus === 'loading' ? '불러오는 중…' : adminStats.total + '건'} · 금액 천원{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
+                      </div>
+                      <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: admDashHTML() }} />
+                    </>
+                  ) : (
+                    <div style={{ overflowY: 'auto', padding: '28px 16px', textAlign: 'center', border: '1.5px dashed #d1d5db', borderRadius: 12, background: '#f9fafb' }}>
+                      <div style={{ fontSize: 30, marginBottom: 10 }}>📈</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 6 }}>영업 통계 (준비 중)</div>
+                      <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
+                        폰 저장 시 입력하는 <b style={{ color: '#6b7280' }}>영업 등급(A/B/C)</b>·<b style={{ color: '#6b7280' }}>동행 방문</b> 데이터를<br />집계해 보여줄 예정입니다.
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 10px' }}>
-                    {adminStats.source} · {sheetStatus === 'loading' ? '불러오는 중…' : adminStats.total + '건'} · 금액 천원{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
-                  </div>
-                  <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: admDashHTML() }} />
-                  <button onClick={() => { setShowAdmin(false); setAdminAuthed(false); }} style={{ width: '100%', marginTop: 14, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
+                  )}
+                  <button onClick={() => { setShowAdmin(false); setAdminAuthed(false); setAdminTab('mgr'); }} style={{ width: '100%', marginTop: 14, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
                 </>
               )}
             </div>
@@ -1277,20 +1322,30 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               <div style={{ fontSize: 15, fontWeight: 600, color: '#111', marginBottom: 4 }}>개인 저장하시겠습니까?</div>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 14 }}>
                 <b style={{ color: NAVY }}>{f.company}</b> 으(로) 이 기기에 저장됩니다.
+                {MGR_INFO[mgrName] && <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 3 }}>담당자 <b style={{ color: '#475569' }}>{mgrName}</b> · 방문 통계 자동 집계</div>}
               </div>
-              <div style={{ textAlign: 'left', marginBottom: 16 }}>
-                <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>담당자 (통계 귀속)</label>
-                <select value={mgrName} onChange={e => setMgrName(e.target.value)} style={{ ...inp }}>
-                  <option value="">(미지정)</option>
-                  <option value="관리자">관리자 (통계 제외)</option>
-                  {Object.entries(MANAGERS).map(([region, branches]) => (
-                    <optgroup key={region} label={region}>
-                      {Object.entries(branches).flatMap(([branch, names]) => names.map(n => (
-                        <option key={n} value={n}>{branch} · {n}</option>
-                      )))}
-                    </optgroup>
-                  ))}
+              <div style={{ textAlign: 'left', marginBottom: 14 }}>
+                {/* 담당자는 로그인 이름으로 자동 귀속 */}
+                <label
+                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 12px', borderRadius: 10, border: `1.5px solid ${accompany ? NAVY : '#e5e7eb'}`, background: accompany ? NAVY_BG : '#fff', cursor: 'pointer', marginBottom: 12 }}
+                >
+                  <input type="checkbox" checked={accompany} onChange={e => setAccompany(e.target.checked)} style={{ width: 18, height: 18, accentColor: NAVY }} />
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: accompany ? NAVY : '#374151' }}>동행 방문</span>
+                  <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>지점장·선임 동행 시 체크</span>
+                </label>
+                <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>영업 등급</label>
+                <select value={salesGrade} onChange={e => setSalesGrade(e.target.value)} style={{ ...inp }}>
+                  <option value="">(등급 선택)</option>
+                  {SALES_GRADES.map(g => <option key={g.v} value={g.v}>{g.label}</option>)}
                 </select>
+                {salesGrade === 'C' && (
+                  <div style={{ marginTop: 9 }}>
+                    <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>영업불가 사유</label>
+                    <select value={cReason} onChange={e => setCReason(e.target.value)} style={{ ...inp }}>
+                      {C_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
