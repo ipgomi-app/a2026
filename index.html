@@ -223,7 +223,7 @@ function KPPTransportApp() {
   const [showCodeCheck, setShowCodeCheck] = useState(false); // 업체명 일치·코드 불일치 재확인
   const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCompany: '', existCode: '', inputCode: '' });
   const [checkingSheet, setCheckingSheet] = useState(false); // 저장 시 전사(시트) 유사업체 조회 중
-  const [readToken, setReadToken] = useState('');      // 관리자 인증 후 파생 — GET 분리 인증용
+  const [readToken, setReadToken] = useState(() => { try { return sessionStorage.getItem('kpp_read_token') || ''; } catch { return ''; } }); // 관리자 인증 후 파생 — 탭 닫기 전까지 유지
   const [newHashForUpdate, setNewHashForUpdate] = useState(''); // 해시 강화용 — 관리자 패널에 표시
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
@@ -375,6 +375,7 @@ function KPPTransportApp() {
       const rtBuf = await crypto.subtle.digest('SHA-256', enc.encode(adminPw + ':kpp-read-2026'));
       const rt = toHex(rtBuf).slice(0, 32);
       setReadToken(rt);
+      try { sessionStorage.setItem('kpp_read_token', rt); } catch {}
       // 4) legacy로 통과 시 → salted 해시 표시(코드 업데이트 안내용)
       if (legacyOk && !saltedOk) setNewHashForUpdate(saltedHex);
       setAdminAuthed(true); setAdminPw('');
@@ -1880,10 +1881,13 @@ function LoginGate() {
   const [err, setErr] = useState('');
   useEffect(() => {
     try {
-      // 로그인 유지: localStorage 캐시 + 암호문 버전 일치 시 자동 진입(재배포로 단가 바뀌면 재로그인)
-      const cached = localStorage.getItem('kpp_rates');
-      if (cached && localStorage.getItem('kpp_rates_ver') === ENC_RATES.slice(0, 24)) {
+      // 로그인 유지: sessionStorage 캐시(탭 닫으면 소멸) + 버전 일치 시 자동 진입
+      const cached = sessionStorage.getItem('kpp_rates');
+      if (cached && sessionStorage.getItem('kpp_rates_ver') === ENC_RATES.slice(0, 24)) {
         applyRates(JSON.parse(cached)); setUnlocked(true);
+      } else {
+        // 구버전 localStorage 캐시 정리
+        try { localStorage.removeItem('kpp_rates'); localStorage.removeItem('kpp_rates_ver'); } catch {}
       }
     } catch {}
   }, []);
@@ -1896,8 +1900,8 @@ function LoginGate() {
       const obj = await decryptRates(pw);
       applyRates(obj);
       try {
-        localStorage.setItem('kpp_rates', JSON.stringify(obj));
-        localStorage.setItem('kpp_rates_ver', ENC_RATES.slice(0, 24));
+        sessionStorage.setItem('kpp_rates', JSON.stringify(obj));
+        sessionStorage.setItem('kpp_rates_ver', ENC_RATES.slice(0, 24));
         localStorage.setItem('kpp_mgr_name', nm);
       } catch {}
       setUnlocked(true);
