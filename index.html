@@ -113,8 +113,8 @@ function applyRates(obj) { RATE_DATA = obj.RATE_DATA; BAROGO_RATE_DATA = obj.BAR
 const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzk4uEiAcEQK9eJF7i0O1g3dRMjag4gaJMX34ZUtsguIPZr2CzAZzlk5PbtLLO6ATEn/exec';
 const SHEET_TOKEN = 'kpp-stats-2026';
 // 견적 저장 시 [등급, 동행, 담당자, 업체명, 코드, 금액, 사유] 전송 (fire-and-forget)
-// 시트 전송 마스킹(전체 데이터는 폰 로컬에만): 업체명=전체 마스킹(****), 코드·금액·담당자=마스킹 안 함
-const maskSheetCompany = (s) => { s = String(s || ''); return s ? '*'.repeat(s.length) : ''; };
+// 시트 전송 마스킹(전체 데이터는 폰 로컬에만): 업체명=앞2자리+마스킹(민승**·전사 유사검사용), 코드·금액·담당자=마스킹 안 함
+const maskSheetCompany = (s) => { s = String(s || ''); return s.length > 2 ? s.slice(0, 2) + '*'.repeat(s.length - 2) : s; };
 function logToSheet(p) {
   if (!SHEET_WEBAPP_URL || !p || !p.name) return;
   try {
@@ -215,6 +215,7 @@ function KPPTransportApp() {
   const [updateWhen, setUpdateWhen] = useState('');
   const [showCodeCheck, setShowCodeCheck] = useState(false); // 업체명 일치·코드 불일치 재확인
   const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCompany: '', existCode: '', inputCode: '' });
+  const [checkingSheet, setCheckingSheet] = useState(false); // 저장 시 전사(시트) 유사업체 조회 중
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
   const [toast, setToast] = useState(null);
@@ -288,7 +289,7 @@ function KPPTransportApp() {
   // 기존 견적일시 표기용: "26년 6월 15일 08시"
   const formatWhen = (ts) => { const d = new Date(ts); return String(d.getFullYear()).slice(2) + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + '시'; };
   // action: undefined=확인 단계 / 'update'=같은코드 갱신 강행 / 'force'=업체명중복(코드불일치) 무시하고 신규저장
-  const doSave = (action) => {
+  const doSave = async (action) => {
     const list = readSaved();
     const info = MGR_INFO[mgrName] || {};
     const avail = [rateY, rateB].filter(x => x != null);
@@ -300,15 +301,21 @@ function KPPTransportApp() {
     // 같은 코드의 기존 견적 → 갱신 확인
     const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
     if (idx !== -1 && action !== 'update') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
-    // 코드는 다른데 업체명이 같거나 유사(앞 2자리 일치) → 코드 오입력 가능성 안내(코드가 중복 판별 기준)
+    // 코드는 다른데 업체명이 같거나 유사(앞 2자리 일치) → 코드 오입력 가능성 안내(전사=시트 기준, 오프라인 시 로컬 폴백)
     if (idx === -1 && action !== 'force') {
       const f2 = company.slice(0, 2);
-      const nameMatch = list.find(x => {
-        if ((x.code || '').trim() === code) return false;
-        const xc = (x.company || '').trim();
-        return xc === company || (f2.length >= 2 && xc.slice(0, 2) === f2);
-      });
-      if (nameMatch) { setCodeCheckInfo({ company, existCompany: (nameMatch.company || '').trim(), existCode: (nameMatch.code || '').trim(), inputCode: code }); setShowCodeCheck(true); return; }
+      let match = null;
+      try {
+        setCheckingSheet(true);
+        const rows = await fetchSheetRows(); // 전사 조회 (~1~3초)
+        match = rows.find(r => { const rc = String(r.code || '').trim(); const rn = String(r.company || ''); return rc && rc !== code && f2.length >= 2 && rn.slice(0, 2) === f2; });
+        if (match) match = { company: String(match.company || ''), code: String(match.code || '').trim() };
+      } catch (e) {
+        // 시트 조회 실패(오프라인 등) → 로컬 기록으로 폴백
+        const lm = list.find(x => { if ((x.code || '').trim() === code) return false; const xc = (x.company || '').trim(); return xc === company || (f2.length >= 2 && xc.slice(0, 2) === f2); });
+        if (lm) match = { company: (lm.company || '').trim(), code: (lm.code || '').trim() };
+      } finally { setCheckingSheet(false); }
+      if (match) { setCodeCheckInfo({ company, existCompany: match.company, existCode: match.code, inputCode: code }); setShowCodeCheck(true); return; }
     }
     const rec = {
       id: idx !== -1 ? list[idx].id : Date.now(), company, code,
@@ -1452,9 +1459,9 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}
                 >취소</button>
                 <button
-                  onClick={confirmSave}
-                  style={{ flex: 1.4, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}
-                >저장</button>
+                  onClick={confirmSave} disabled={checkingSheet}
+                  style={{ flex: 1.4, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: checkingSheet ? 'default' : 'pointer', background: checkingSheet ? '#93c5fd' : NAVY, color: '#fff', border: 'none' }}
+                >{checkingSheet ? '확인 중…' : '저장'}</button>
               </div>
             </div>
           </div>
