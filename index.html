@@ -33,25 +33,27 @@
   .kd-left{width:100%}
   .kd-right{width:100%;overflow:auto}
   .kd-blk{margin-bottom:14px}
-  .kd-t{font-size:13px;font-weight:800;color:#0c447c;margin-bottom:6px}
+  .kd-t{font-size:14.5px;font-weight:800;color:#0c447c;margin-bottom:8px}
   .kd-dw{display:flex;flex-direction:column;align-items:center;gap:8px}
   .kd-dw svg{width:158px;height:158px}
-  .kd-lgs{width:100%;display:grid;grid-template-columns:1fr 1fr;column-gap:14px;row-gap:1px;padding:4px 0}
-  .kd-lg{display:flex;align-items:center;gap:6px;font-size:11px;margin:1px 0;min-width:0}
-  .kd-sw{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+  .kd-lgs{width:100%;display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row;column-gap:12px;row-gap:2px;padding:4px 0}
+  .kd-lg{display:flex;align-items:center;gap:7px;font-size:12.5px;margin:3px 0;min-width:0}
+  .kd-sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
   .kd-nm{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .kd-pc{font-weight:800;color:#0c447c;flex:0 0 30px;text-align:right}
-  .kd-vl{color:#94a3b8;flex:0 0 52px;text-align:right;font-size:10px}
-  .kd-tbl{border-collapse:collapse;font-size:11.5px;table-layout:fixed;width:auto}
+  .kd-pc{font-weight:800;color:#0c447c;flex:0 0 auto;text-align:right;white-space:nowrap}
+  .kd-pc small{font-weight:600;color:#94a3b8;font-size:11px}
+  .kd-tbl{border-collapse:collapse;font-size:12px;table-layout:fixed;width:auto}
   .kd-tbl th{background:#0c447c;color:#fff;font-weight:700;padding:6px 3px;font-size:11px}
-  .kd-tbl td{border:1px solid #e7ebf0;padding:6px 3px;text-align:center;white-space:nowrap;vertical-align:middle}
+  .kd-tbl td{border:1px solid #e7ebf0;padding:6px 4px;text-align:center;white-space:nowrap;vertical-align:middle}
+  .kd-tbl td b{font-size:13px}
+  .kd-amt{font-size:10.5px;color:#475569;font-weight:600;margin-top:1px}
   .kd-tbl td.reg{font-weight:800;color:#fff;writing-mode:vertical-rl;text-orientation:upright;letter-spacing:1px}
   .kd-tbl td.br{font-weight:700;color:#334155}
   .kd-tbl td.nm{text-align:left;padding-left:8px;font-weight:600}
   .kd-tbl td b{color:#0c447c;font-weight:800}
   .kd-z{color:#cbd5e1;font-weight:600}
   .kd-tbl tr.sub td{background:#eaf2fb;font-weight:800;color:#0c447c}
-  .kd-tbl tr.tot td{background:#0c447c;color:#fff;font-weight:800}.kd-tbl tr.tot td b{color:#fff}
+  .kd-tbl tr.tot td{background:#0c447c;color:#fff;font-weight:800}.kd-tbl tr.tot td b{color:#fff}.kd-tbl tr.tot td .kd-amt{color:#dbe7f7}
 </style>
 </head>
 <body>
@@ -329,19 +331,22 @@ function KPPTransportApp() {
     const aggBy = (mode) => {
       const acc = {};
       for (const reg in MANAGERS) for (const br in MANAGERS[reg]) { if (br === reg) continue; for (const n of MANAGERS[reg][br]) { const d = amd(n); const k = mode === 'b' ? br : n; if (!acc[k]) acc[k] = { key: k, cnt: 0, amt: 0 }; acc[k].cnt += cv(d); acc[k].amt += av(d); } }
-      return Object.values(acc).filter(x => x.cnt > 0).sort((a, b) => M === 'c' ? b.cnt - a.cnt : b.amt - a.amt);
+      return Object.values(acc);
     };
     const donut = (rows) => {
       const val = r => M === 'c' ? r.cnt : r.amt;
-      const tot = rows.reduce((s, r) => s + val(r), 0) || 1, C = 2 * Math.PI * 70; let off = 0;
+      const nz = rows.filter(r => r.cnt > 0).sort((a, b) => M === 'c' ? b.cnt - a.cnt : b.amt - a.amt);
+      const zr = rows.filter(r => r.cnt === 0);
+      const tot = nz.reduce((s, r) => s + val(r), 0) || 1, C = 2 * Math.PI * 70; let off = 0;
       let segs = '<circle r="70" cx="100" cy="100" fill="none" stroke="#eef2f7" stroke-width="28"></circle>';
-      rows.forEach((r, i) => { const sg = C * val(r) / tot; segs += '<circle r="70" cx="100" cy="100" fill="none" stroke="' + ADM_PAL[i % ADM_PAL.length] + '" stroke-width="28" stroke-dasharray="' + sg.toFixed(2) + ' ' + (C - sg).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 100 100)"></circle>'; off += sg; });
-      const ctr = M === 'c' ? rows.reduce((s, r) => s + r.cnt, 0) + '건' : fmt(rows.reduce((s, r) => s + r.amt, 0) / 1000) + '천원';
+      nz.forEach((r, i) => { const sg = C * val(r) / tot; segs += '<circle r="70" cx="100" cy="100" fill="none" stroke="' + ADM_PAL[i % ADM_PAL.length] + '" stroke-width="28" stroke-dasharray="' + sg.toFixed(2) + ' ' + (C - sg).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 100 100)"></circle>'; off += sg; });
+      const ctr = M === 'c' ? nz.reduce((s, r) => s + r.cnt, 0) + '건' : fmt(nz.reduce((s, r) => s + r.amt, 0) / 1000) + '천원';
       const svg = '<svg viewBox="0 0 200 200">' + segs + '<text x="100" y="98" text-anchor="middle" style="font-size:14px;font-weight:800;fill:#0f172a">' + ctr + '</text><text x="100" y="113" text-anchor="middle" style="font-size:8.5px;fill:#94a3b8">전체</text></svg>';
-      const leg = rows.length ? rows.map((r, i) => { const pc = Math.round(val(r) / tot * 100); const v = M === 'c' ? r.cnt + '건' : fmt(r.amt / 1000) + '천원'; return '<div class="kd-lg"><span class="kd-sw" style="background:' + ADM_PAL[i % ADM_PAL.length] + '"></span><span class="kd-nm">' + r.key + '</span><span class="kd-pc">' + pc + '%</span><span class="kd-vl">' + v + '</span></div>'; }).join('') : '<div style="color:#9ca3af;font-size:12px;padding:10px;text-align:center">데이터 없음</div>';
-      return '<div class="kd-dw">' + svg + '<div class="kd-lgs">' + leg + '</div></div>';
+      const legNz = nz.map((r, i) => { const pc = Math.round(val(r) / tot * 100); const v = M === 'c' ? r.cnt + '건' : fmt(r.amt / 1000); return '<div class="kd-lg"><span class="kd-sw" style="background:' + ADM_PAL[i % ADM_PAL.length] + '"></span><span class="kd-nm">' + r.key + '</span><span class="kd-pc">' + pc + '% <small>(' + v + ')</small></span></div>'; }).join('');
+      const legZr = zr.map(r => '<div class="kd-lg"><span class="kd-sw" style="background:#e2e8f0"></span><span class="kd-nm" style="color:#9ca3af">' + r.key + '</span><span class="kd-pc" style="color:#cbd5e1;font-weight:600">없음</span></div>').join('');
+      return '<div class="kd-dw">' + svg + '<div class="kd-lgs">' + legNz + legZr + '</div></div>';
     };
-    const cell = (c, a) => c === 0 ? '<span class="kd-z">0건</span>' : '<b>' + c + '건</b> ' + Math.round(a / 1000).toLocaleString();
+    const cell = (c, a) => c === 0 ? '<span class="kd-z">없음</span>' : '<b>' + c + '건</b><div class="kd-amt">' + Math.round(a / 1000).toLocaleString() + '천원</div>';
     let tb = '<tr><th>권역</th><th>지점</th><th>담당자</th><th>이번달<br>(건/천원)</th><th>누계<br>(건/천원)</th></tr>';
     let GMc = 0, GMa = 0, GTc = 0, GTa = 0;
     for (const reg in MANAGERS) {
