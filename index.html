@@ -221,6 +221,15 @@ function KPPTransportApp() {
   const [toast, setToast] = useState(null);
   const [showExit, setShowExit] = useState(false);
   const exitingRef = useRef(false);
+  const formRef = useRef();
+  const focusNextEmpty = (el) => {
+    if (!formRef.current) return;
+    const all = Array.from(formRef.current.querySelectorAll('input:not([type="password"]):not([type="checkbox"])'));
+    const i = all.indexOf(el);
+    for (let j = i + 1; j < all.length; j++) {
+      if (!all[j].value) { all[j].focus(); return; }
+    }
+  };
   const [showRefresh, setShowRefresh] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -903,7 +912,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
   );
 
   return (
-    <div style={{ maxWidth: 380, margin: '0 auto', paddingBottom: 12 }}>
+    <div ref={formRef} style={{ maxWidth: 380, margin: '0 auto', paddingBottom: 12 }}>
       <h2 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', margin: -1 }}>KPP 운송 견적 시스템</h2>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'linear-gradient(135deg, #0c447c 0%, #1565c0 100%)', padding: '10px 14px', boxShadow: '0 2px 8px rgba(12,68,124,0.25)' }}>
@@ -1053,27 +1062,27 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500, whiteSpace: 'nowrap' }}>제품</span>
-                    <input style={{ ...inp, flex: 1 }} placeholder="예: 차량부품 (직접 입력)" value={f.cargoEtc} onChange={e => upd('cargoEtc', e.target.value)} />
+                    <input style={{ ...inp, flex: 1 }} placeholder="예: 차량부품 (직접 입력)" value={f.cargoEtc} onChange={e => upd('cargoEtc', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextEmpty(e.target); } }} />
                   </div>
 
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>중량/PLT</label>
-                      <input style={inp} inputMode="decimal" placeholder="예: 1000kg/PLT" value={f.weight} onChange={e => upd('weight', e.target.value)} />
+                      <input style={inp} inputMode="decimal" placeholder="예: 1000kg/PLT" value={f.weight} onChange={e => upd('weight', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextEmpty(e.target); } }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>1회 출고량</label>
-                      <input style={inp} inputMode="numeric" placeholder="예: 12 PLT" value={f.onceQty} onChange={e => upd('onceQty', e.target.value)} />
+                      <input style={inp} inputMode="numeric" placeholder="예: 12 PLT" value={f.onceQty} onChange={e => upd('onceQty', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextEmpty(e.target); } }} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>월 평균 물동량</label>
-                      <input style={inp} inputMode="numeric" placeholder="예: 200 PLT/월" value={f.monthVol} onChange={e => upd('monthVol', e.target.value)} />
+                      <input style={inp} inputMode="numeric" placeholder="예: 200 PLT/월" value={f.monthVol} onChange={e => upd('monthVol', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextEmpty(e.target); } }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>제품수량/PLT</label>
-                      <input style={inp} inputMode="numeric" placeholder="예: 50" value={f.qtyPerPlt} onChange={e => upd('qtyPerPlt', e.target.value)} />
+                      <input style={inp} inputMode="numeric" placeholder="예: 50" value={f.qtyPerPlt} onChange={e => upd('qtyPerPlt', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNextEmpty(e.target); } }} />
                     </div>
                   </div>
                 </div>
