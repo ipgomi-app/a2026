@@ -1816,8 +1816,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   <div key={label} style={card}>
                     <div style={sectionTitle}>{label}</div>
                     {/* 헤더 라벨 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 1fr 0.7fr', gap: 6, marginBottom: 5, paddingLeft: 2 }}>
-                      {['', '지역', '시·군', '현재단가', '월댓수'].map((h, hi) => (
+                    <div style={{ display: 'grid', gridTemplateColumns: '16px 0.8fr 0.8fr 1fr 0.65fr', gap: 6, marginBottom: 5, paddingLeft: 2 }}>
+                      {['', '지역', '시·군', '단가', '횟수'].map((h, hi) => (
                         <div key={hi} style={{ fontSize: 10, color: '#9ca3af', textAlign: hi >= 3 ? 'right' : 'left' }}>{h}</div>
                       ))}
                     </div>
@@ -1826,7 +1826,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       const compactSel = { padding: '8px 5px', fontSize: 12 };
                       const compactInp = { padding: '8px 6px', fontSize: 12, height: 36, textAlign: 'right' };
                       return (
-                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 1fr 1fr 1fr 0.7fr', alignItems: 'center', gap: 6 }}>
+                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 0.8fr 0.8fr 1fr 0.65fr', alignItems: 'center', gap: 6 }}>
                           <div style={{ fontSize: 10, color: '#9ca3af' }}>#{i + 1}</div>
                           <select className="selChip" style={{ ...compactSel }} value={row.region} onChange={e => updateManualRow(i, 'region', e.target.value)}>
                             <option value="">지역</option>
@@ -1845,7 +1845,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                           />
                           <input
                             style={{ ...inp, ...compactInp, background: !row.rate ? '#f3f4f6' : '#fff', color: !row.rate ? '#9ca3af' : '#111' }}
-                            type="text" inputMode="numeric" placeholder="댓수"
+                            type="text" inputMode="numeric" placeholder="횟수"
                             disabled={!row.rate}
                             value={row.count || ''}
                             onChange={e => updateManualRow(i, 'count', e.target.value.replace(/[^\d]/g, ''))}
@@ -1887,11 +1887,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     const cnt = row.count || 0;
                     return (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.85fr', padding: '9px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: rowBg, alignItems: 'center' }}>
-                        {/* 지역 한줄 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#111', whiteSpace: 'nowrap' }}>{row.지역}</span>
-                          {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주요</span>}
-                          <span style={{ fontSize: 9.5, color: '#b0b8c1', whiteSpace: 'nowrap' }}>{row.톤}{cnt > 0 ? `·${cnt}대` : ''}</span>
+                        {/* 지역 + 톤/횟수 아래 */}
+                        <div style={{ lineHeight: 1.3 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</span>
+                            {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주</span>}
+                          </div>
+                          <div style={{ fontSize: 9.5, color: '#b0b8c1' }}>{row.톤}{cnt > 0 ? `/${cnt}회` : ''}</div>
                         </div>
                         {/* 현단가 — 단가만 */}
                         <div style={{ fontSize: 11, textAlign: 'right', color: '#6b7280' }}>{row.existRate ? fmt(row.existRate) : '—'}</div>
@@ -1961,10 +1963,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         const v3Amt = mAmt(v3raw, cnt);
                         return (
                           <div key={i} style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '8px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.02)', alignItems: 'center' }}>
-                            {/* 지역 */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</span>
-                              {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주요</span>}
+                            {/* 지역 + 톤/횟수 아래 */}
+                            <div style={{ lineHeight: 1.3 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</span>
+                                {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주</span>}
+                              </div>
+                              <div style={{ fontSize: 9.5, color: '#b0b8c1' }}>{row.톤}{cnt > 0 ? `/${cnt}회` : ''}</div>
                             </div>
                             {/* 업체현단가 (천원) */}
                             <div style={{ fontSize: 11, textAlign: 'right', color: existAmt ? '#374151' : '#ccc' }}>{fmtK(existAmt)}</div>
