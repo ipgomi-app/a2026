@@ -791,6 +791,7 @@ ${manualKPP.rows.map(r => `      · ${r.지역} : 현재 ${r.existRate ? fmt(r.e
   };
 
   const handlePrint = () => {
+    const fmtK = v => v ? Math.round(v / 1000).toLocaleString() : '—';
     const today = new Date().toLocaleDateString('ko-KR');
     const perTripSave = existRate > 0 && kppRate ? existRate - kppRate : 0;
     const perTripPct  = existRate > 0 ? Math.abs(perTripSave) / existRate * 100 : 0;
