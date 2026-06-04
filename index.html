@@ -386,7 +386,24 @@ function KPPTransportApp() {
   };
   const confirmSave = () => doSave();
   const openLoad = () => { setSavedList(readSaved()); setLoadSearch(''); setShowLoadModal(true); };
-  const loadQuote = (item) => { setF({ ...INIT, ...item.data }); if (item.scan) { if (Array.isArray(item.scan.manualRows)) setManualRows(item.scan.manualRows); if (item.scan.scanDep) setScanDep(item.scan.scanDep); if (typeof item.scan.scanTonIdx === 'number') setScanTonIdx(item.scan.scanTonIdx); } setTab('quote'); setOpenCargo(true); setOpenCust(true); setShowLoadModal(false); showToast('불러왔습니다'); };
+  const loadQuote = (item) => {
+    const isScan = item.type === 'scan';
+    if (item.data) setF({ ...INIT, ...item.data });
+    if (item.scan) {
+      if (Array.isArray(item.scan.manualRows)) setManualRows(item.scan.manualRows);
+      if (item.scan.scanDep) setScanDep(item.scan.scanDep);
+      if (typeof item.scan.scanTonIdx === 'number') setScanTonIdx(item.scan.scanTonIdx);
+    }
+    if (isScan) {
+      setScanCompany(item.company || '');
+      setScanCode(item.code || '');
+      setTab('scan');
+    } else {
+      setTab('quote'); setOpenCargo(true); setOpenCust(true);
+    }
+    setShowLoadModal(false);
+    showToast('불러왔습니다');
+  };
   const deleteQuote = (id) => { const next = readSaved().filter(x => x.id !== id); writeSaved(next); setSavedList(next); };
   const verifyAdmin = async () => {
     try {
@@ -1015,7 +1032,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
     then();
   };
   const doScanSave = () => {
-    const now = new Date(); const ym = now.getFullYear() * 100 + now.getMonth() + 1;
+    const now = new Date(); const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const list = readSaved();
     const code = effScanCode.trim().toUpperCase(); const company = effScanCompany.trim();
     const idx = list.findIndex(x => x.code === code && x.type === 'scan');
@@ -1733,9 +1750,14 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                   return list.map(item => (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 4px', borderBottom: '0.5px solid #eef0f3' }}>
                       <div style={{ flex: 1, cursor: 'pointer', minWidth: 0 }} onClick={() => loadQuote(item)}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {item.type === 'scan' && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: '#0c447c', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>분석</span>}
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company}</span>
+                        </div>
                         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
-                          {item.savedAt} · {item.data?.dep} → {item.data?.dest} · {TONS[item.data?.tonIdx] || ''}
+                          {item.type === 'scan'
+                            ? `${item.savedAt} · ${item.scan?.scanDep || ''} 출발 · ${(item.scan?.manualRows || []).filter(r => r.dest && r.rate).length}개 구간`
+                            : `${item.savedAt} · ${item.data?.dep || ''} → ${item.data?.dest || ''} · ${TONS[item.data?.tonIdx] || ''}`}
                         </div>
                       </div>
                       <button
