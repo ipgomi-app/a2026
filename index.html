@@ -813,6 +813,27 @@ ${annualSaveAbs !== null ? `<tr style="font-weight:bold;background:${rowBg};colo
   <td class="r">${arrow} ${fmt(annualSaveAbs)}원 &nbsp;<span style="opacity:.75">(${pctStr}%)</span></td>
 </tr>` : ''}` : '';
 
+    const scanRoiRows = (tab === 'scan' && manualKPP) ? (() => {
+      const mains = manualKPP.rows.filter(r => r.isMain && r.existRate > 0);
+      if (!mains.length) return '';
+      return mains.map(r => {
+        const sv = r.kppRate ? r.existRate - r.kppRate : 0;
+        const pp = r.existRate > 0 ? Math.abs(sv) / r.existRate * 100 : 0;
+        const ps = pp < 1 ? pp.toFixed(1) : Math.round(pp).toString();
+        const dn = sv >= 0; const ar = dn ? '▼' : '▲';
+        const bg2 = dn ? '#fef2f2' : '#e6f7ee'; const cl2 = dn ? '#dc2626' : '#15803d';
+        const by = carrierBY(r.carrier);
+        const ann = r.count > 0 ? Math.abs(sv) * r.count * 12 : null;
+        return `<tr><td colspan="2" style="background:#f1f5f9;font-weight:700;color:#0c447c">${r.지역} (${r.톤})</td></tr>
+<tr><td>현재 운임 (기존)</td><td class="r">${fmt(r.existRate)}원/회${r.count > 0 ? ` · 월 ${fmt(r.existRate * r.count)}원` : ''}</td></tr>
+<tr><td>KPP 제안 단가</td><td class="r">${r.kppRate ? fmt(r.kppRate) : '-'}원/회${by ? ` (${by})` : ''}${r.count > 0 && r.kppRate ? ` · 월 ${fmt(r.kppRate * r.count)}원` : ''}</td></tr>
+<tr style="font-weight:bold;background:${bg2};color:${cl2}"><td>회당 절감</td><td class="r">${ar} ${fmt(Math.abs(sv))}원 &nbsp;<span style="opacity:.75">(${ps}%)</span></td></tr>
+${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><td>연간 예상 절감</td><td class="r">${ar} ${fmt(ann)}원 &nbsp;<span style="opacity:.75">(${ps}%)</span></td></tr>` : ''}`;
+      }).join('');
+    })() : '';
+    const effRoiRows = tab === 'scan' ? scanRoiRows : roiRows;
+    const effRoiTitle = tab === 'scan' ? '2. 주요구간 비교' : '2. 비용 비교 분석';
+
     const withUnit = (v, unit) => v && !/[가-힣A-Za-z]/.test(String(v).trim()) ? `${String(v).trim()} ${unit}` : v;
     const cargoPdfText = [f.pallet, f.twoTier && '2단적재', ...f.cargoType].filter(Boolean).join(', ');
 
@@ -846,7 +867,7 @@ ${annualSaveAbs !== null ? `<tr style="font-weight:bold;background:${rowBg};colo
       const diff = r.save !== null ? `${dn ? '▼' : '▲'} ${Math.abs(r.pct)}%` : '—';
       return `<tr><td>${r.지역} <span style="color:#94a3b8">${r.톤}</span></td><td class="r">${r.existRate ? fmt(r.existRate) : '-'}</td><td class="r">${r.kppRate ? fmt(r.kppRate) : '-'}${by ? ` (${by})` : ''}</td><td class="r" style="color:${clr};font-weight:bold">${diff}</td></tr>`;
     }).join('') : '';
-    const nRoi = roiRows ? 1 : 0, nScan = scanSecRows ? 1 : 0;
+    const nRoi = effRoiRows ? 1 : 0, nScan = scanSecRows ? 1 : 0;
     const secScanNo = 2 + nRoi;
     const secNoticeNo = 2 + nRoi + nScan;
 
@@ -904,8 +925,8 @@ ${kpiHtml}
 <div class="sec">1. 운송 견적 정보</div>
 <table><tr><th>항목</th><th>내용</th></tr>${condRows}</table>
 
-${roiRows ? `<div class="sec">2. 비용 비교 분석</div>
-<table><tr><th>구분</th><th>금액</th></tr>${roiRows}</table>` : ''}
+${effRoiRows ? `<div class="sec">${effRoiTitle}</div>
+<table><tr><th>구분</th><th>금액</th></tr>${effRoiRows}</table>` : ''}
 
 ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 비교)</div>
 <div style="font-size:9px;color:#64748b;margin:2px 0 0">${effScanDep} 출발 · ${TONS[scanTonIdx]} 기준 · ▼ KPP 저렴 / ▲ KPP 비쌈</div>
