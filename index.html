@@ -825,7 +825,7 @@ ${annualSaveAbs !== null ? `<tr style="font-weight:bold;background:${rowBg};colo
       ...(f.weight ? [['중량/PLT', withUnit(f.weight, 'kg/PLT')]] : []),
       ...(f.onceQty ? [['1회 출고량', withUnit(f.onceQty, '파렛트')]] : []),
       ...(f.monthVol ? [['월 평균 물동량', withUnit(f.monthVol, '파렛트')]] : []),
-      ...(f.qtyPerPlt ? [['제품수량/PLT', f.qtyPerPlt]] : []),
+      ...(f.qtyPerPlt ? [['제품수량/PLT', `${f.qtyPerPlt} 개`]] : []),
       ['운송 조건', condText + (specialConds.length || temp !== '상온' ? ' (※별도협의)' : '')],
       ...(freq > 0 ? [['월 운송횟수', `${freq}회`]] : []),
     ].map(([l, v]) => `<tr><td>${l}</td><td class="r">${v}</td></tr>`).join('');
