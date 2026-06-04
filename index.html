@@ -1987,18 +1987,17 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       })}
                       {/* 합계 행 */}
                       <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '9px 10px', background: '#f1f5f9', borderTop: '1.5px solid #e2e8f0', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
-                          {totalPct !== null && (
-                            <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginTop: 2 }}>▼ {totalPct}%</div>
-                          )}
-                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumExist ? '#374151' : '#ccc' }}>{fmtK(sumExist)}</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{fmtK(col2.sum)}</div>
-                        <div style={{ fontSize: 11, textAlign: 'right', color: '#9ca3af' }}>—</div>
+                        {/* 차이%를 차이 컬럼에 직접 표시 */}
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>({fmtK(col3.sum)}천원)</div>
+                          {totalPct !== null ? (
+                            <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 20, color: '#dc2626', background: '#fee2e2' }}>▼ {totalPct}%</span>
+                          ) : <span style={{ color: '#ccc' }}>—</span>}
                         </div>
+                        {/* col3: 괄호 숫자만 */}
+                        <div style={{ fontSize: 11, textAlign: 'right', fontWeight: 600, color: '#64748b' }}>({fmtK(col3.sum)})</div>
                       </div>
                     </div>
                   </div>
