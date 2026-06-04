@@ -1846,14 +1846,14 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     </div>
                     {indices.map(i => {
                       const row = manualRows[i];
-                      const compactSel = { padding: '7px 0', fontSize: 13, appearance: 'none', WebkitAppearance: 'none', textAlign: 'center' };
+                      const compactSel = { padding: '7px 0', fontSize: 11, appearance: 'none', WebkitAppearance: 'none', textAlign: 'center' };
                       const compactInp = { padding: '7px 5px', fontSize: 13, height: 34, textAlign: 'right' };
                       return (
                         <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 1fr 52px 46px 1fr', alignItems: 'center', gap: 5 }}>
                           <div style={{ fontSize: 12, color: '#9ca3af' }}>#{i + 1}</div>
                           {/* 지역·시군 합친 한 칸 — 2단계 선택 */}
                           <div style={{ position: 'relative' }}>
-                            <div className="selChip" style={{ fontSize: 13, padding: '7px 8px', color: row.dest ? '#111' : row.region ? '#1d4ed8' : '#9ca3af', fontWeight: row.dest ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div className="selChip" style={{ fontSize: 13, padding: '7px 8px', color: row.dest ? '#0c447c' : row.region ? '#0c447c' : '#9ca3af', fontWeight: row.dest ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {row.dest ? (row.region === '특별·광역시' ? row.dest : `${row.region} ${row.dest}`) : row.region ? `${row.region} ▸` : '지역·시군'}
                             </div>
                             {/* 지역 select — 미선택 or 완료(재선택용) 시 최상위 */}
