@@ -1988,12 +1988,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumExist ? '#374151' : '#ccc' }}>{fmtK(sumExist)}</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{fmtK(col2.sum)}</div>
-                        {/* 차이%를 차이 컬럼에 직접 표시 */}
-                        <div style={{ textAlign: 'right' }}>
-                          {totalPct !== null ? (
-                            <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 20, color: '#dc2626', background: '#fee2e2' }}>▼ {totalPct}%</span>
-                          ) : <span style={{ color: '#ccc' }}>—</span>}
-                        </div>
+                        <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>
                         {/* col3: 합계 금액 */}
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{fmtK(col3.sum)}</div>
                       </div>
