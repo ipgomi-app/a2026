@@ -56,24 +56,6 @@
   .kd-tbl tr.sub td{background:#eaf2fb;font-weight:800;color:#0c447c}
   .kd-tbl tr.tot td{background:#0c447c;color:#fff;font-weight:800}.kd-tbl tr.tot td b{color:#fff}.kd-tbl tr.tot td .kd-amt{color:#dbe7f7}
 </style>
-<script>
-  var _ptrStartY = 0;
-  document.addEventListener('touchstart', function(e) { _ptrStartY = e.touches[0].clientY; }, { passive: true });
-  document.addEventListener('touchmove', function(e) {
-    if (e.touches.length > 1) return;
-    var t = e.target;
-    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return;
-    // 스크롤 가능한 자식 컨테이너 안이면 네이티브 스크롤 허용
-    var el = t;
-    while (el && el !== document.documentElement) {
-      var ov = window.getComputedStyle(el).overflowY;
-      if ((ov === 'auto' || ov === 'scroll') && el.scrollHeight > el.clientHeight) return;
-      el = el.parentElement;
-    }
-    // 스크롤 컨테이너 밖(문서 최상위) — 아래로 드래그만 차단
-    if (e.touches[0].clientY > _ptrStartY) e.preventDefault();
-  }, { passive: false });
-</script>
 </head>
 <body>
 <div id="root"></div>
