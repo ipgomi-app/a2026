@@ -1345,18 +1345,6 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       </div>
                     </div>
                   )}
-                  {/* Apps Script 읽기 토큰 — AS READ_TOKEN에 1회 설정 */}
-                  {readToken && (
-                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 11.5 }}>
-                      <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 4 }}>🔑 AS 읽기 토큰 (1회 설정)</div>
-                      <div style={{ color: '#1e3a8a', marginBottom: 6 }}>Apps Script의 <b>READ_TOKEN</b>에 붙여넣고 재배포하면 GET이 소스 외부로 보호됩니다.</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <code style={{ flex: 1, fontSize: 10, background: '#fff', padding: '4px 6px', borderRadius: 6, wordBreak: 'break-all', color: '#374151' }}>{readToken}</code>
-                        <button onClick={() => { navigator.clipboard?.writeText(readToken); showToast('복사됨'); }}
-                          style={{ padding: '4px 10px', background: '#1e40af', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>복사</button>
-                      </div>
-                    </div>
-                  )}
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>🛠️ 관리자 통계</div>
                     <button onClick={() => { setSheetStatus('loading'); fetchSheetRows(readToken).then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
