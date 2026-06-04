@@ -2093,7 +2093,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       return (
                         <div style={{ marginTop: 10, padding: '10px 12px', background: isKppWin ? '#fef2f2' : '#f0fdf4', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 12, color: '#374151' }}>
-                            {isKppWin ? `KPP 저렴 ${kppCheaper}/${valid.length}개 구간` : `현단가 저렴 ${existCheaper}/${valid.length}개 구간`}
+                            KPP 최저가 운송사 기준
                           </span>
                           <span style={{ fontSize: 13, fontWeight: 700, color: isKppWin ? '#dc2626' : '#16a34a' }}>
                             {isKppWin ? '▼' : '▲'} {fmtK(Math.abs(diffAmt))}천원 &nbsp;{isKppWin ? '▼' : '▲'}{diffPct}%
