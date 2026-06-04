@@ -1839,7 +1839,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   <div key={label} style={card}>
                     <div style={sectionTitle}>{label}</div>
                     {/* 헤더 라벨 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 46px 46px 1fr', gap: 5, marginBottom: 5, paddingLeft: 2 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 56px 46px 1fr', gap: 5, marginBottom: 5, paddingLeft: 2 }}>
                       {['', '지역·시군', '톤수', '횟수', '단가'].map((h, hi) => (
                         <div key={hi} style={{ fontSize: 10, color: '#9ca3af', textAlign: hi >= 3 ? 'right' : 'left' }}>{h}</div>
                       ))}
@@ -1849,7 +1849,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       const compactSel = { padding: '7px 2px', fontSize: 10 };
                       const compactInp = { padding: '7px 5px', fontSize: 11, height: 34, textAlign: 'right' };
                       return (
-                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 1fr 46px 46px 1fr', alignItems: 'center', gap: 5 }}>
+                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 1fr 56px 46px 1fr', alignItems: 'center', gap: 5 }}>
                           <div style={{ fontSize: 10, color: '#9ca3af' }}>#{i + 1}</div>
                           {/* 지역·시군 합친 한 칸 — 2단계 선택 */}
                           <div style={{ position: 'relative' }}>
