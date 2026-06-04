@@ -2002,6 +2002,26 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{fmtK(col3.sum)}</div>
                       </div>
                     </div>
+                    {/* ── 요약 안내 ── */}
+                    {(() => {
+                      const valid = manualKPP.rows.filter(r => r.save !== null);
+                      if (valid.length === 0) return null;
+                      const kppCheaper = valid.filter(r => r.save > 0).length;
+                      const existCheaper = valid.length - kppCheaper;
+                      const diffAmt = sumExist - col2.sum; // 양수=KPP저렴, 음수=현단가저렴
+                      const diffPct = sumExist > 0 ? Math.round(Math.abs(diffAmt) / sumExist * 100) : 0;
+                      const isKppWin = diffAmt > 0;
+                      return (
+                        <div style={{ marginTop: 10, padding: '10px 12px', background: isKppWin ? '#fef2f2' : '#f0fdf4', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, color: '#374151' }}>
+                            {isKppWin ? `KPP 저렴 ${kppCheaper}/${valid.length}개 구간` : `현단가 저렴 ${existCheaper}/${valid.length}개 구간`}
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isKppWin ? '#dc2626' : '#16a34a' }}>
+                            {isKppWin ? '▼' : '▲'} {fmtK(Math.abs(diffAmt))}천원 &nbsp;{isKppWin ? '▼' : '▲'}{diffPct}%
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
