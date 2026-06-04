@@ -1519,8 +1519,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       style={{ flex: 1, padding: '9px 3px', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${accompany === v ? NAVY : '#e5e7eb'}`, background: accompany === v ? NAVY : '#fff', color: accompany === v ? '#fff' : col }}>{lbl}</button>
                   ))}
                 </div>
-                <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>영업 등급</label>
-                <select value={salesGrade} onChange={e => setSalesGrade(e.target.value)} style={{ ...inp }}>
+                <label style={{ fontSize: 12, color: salesGrade ? '#6b7280' : '#dc2626', display: 'block', marginBottom: 5, fontWeight: salesGrade ? 400 : 600 }}>영업 등급 {!salesGrade && <span style={{ fontSize: 11 }}>— 필수 선택</span>}</label>
+                <select value={salesGrade} onChange={e => setSalesGrade(e.target.value)} style={{ ...inp, border: salesGrade ? '1px solid #d1d5db' : '2px solid #dc2626', outline: 'none' }}>
                   <option value="">(등급 선택)</option>
                   {SALES_GRADES.map(g => <option key={g.v} value={g.v}>{g.label}</option>)}
                 </select>
@@ -1539,8 +1539,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}
                 >취소</button>
                 <button
-                  onClick={confirmSave} disabled={checkingSheet}
-                  style={{ flex: 1.4, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: checkingSheet ? 'default' : 'pointer', background: checkingSheet ? '#93c5fd' : NAVY, color: '#fff', border: 'none' }}
+                  onClick={confirmSave} disabled={checkingSheet || !salesGrade}
+                  style={{ flex: 1.4, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: (checkingSheet || !salesGrade) ? 'default' : 'pointer', background: checkingSheet ? '#93c5fd' : !salesGrade ? '#cbd5e1' : NAVY, color: !salesGrade ? '#9ca3af' : '#fff', border: 'none' }}
                 >{checkingSheet ? '확인 중…' : '저장'}</button>
               </div>
             </div>
