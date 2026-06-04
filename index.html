@@ -799,7 +799,7 @@ ${annualSaveAbs !== null ? `<tr style="font-weight:bold;background:${rowBg};colo
 <div class="kpi">
   <div class="b hl"><div class="lbl">KPP 제안 단가</div><div class="v">${fmt(kppRate)}<small>원/회</small></div></div>
   ${freq > 0 ? `<div class="b"><div class="lbl">월 예상 비용</div><div class="v">${fmt(kppMonthly)}<small>원</small></div></div>` : ''}
-  ${existRate > 0 ? `<div class="b rd"><div class="lbl">연간 절감 효과</div><div class="v">${arrow} ${fmt(Math.abs(savings * 12))}<small>원</small></div></div>` : ''}
+  ${existRate > 0 ? `<div class="b ${isDown ? 'rd' : 'g'}"><div class="lbl">연간 절감 효과</div><div class="v" style="color:${rowClr}">${arrow} ${fmt(Math.abs(savings * 12))}<small style="color:${rowClr}">원</small></div></div>` : ''}
 </div>` : '';
 
     const pdfHtml = `<!DOCTYPE html>
