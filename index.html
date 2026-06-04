@@ -1918,7 +1918,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                   const r = manualRows;
                   return [
                     { label: '주요 구간', indices: [0, ...(r[0].dest && r[0].rate ? [1] : [])] },
-                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest ? [3] : []), ...(r[2].dest && r[3].dest ? [4] : [])] },
+                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest && r[2].rate ? [3] : []), ...(r[2].dest && r[2].rate && r[3].dest && r[3].rate ? [4] : [])] },
                   ];
                 })().map(({ label, indices }) => (
                   <div key={label} style={card}>
