@@ -832,7 +832,7 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       }).join('');
     })() : '';
     const effRoiRows = tab === 'scan' ? scanRoiRows : roiRows;
-    const effRoiTitle = tab === 'scan' ? '2. 주요구간 비교' : '2. 비용 비교 분석';
+    const effRoiTitle = tab === 'scan' ? '2. 운임 분석 (주요구간 비교)' : '2. 비용 비교 분석';
 
     const withUnit = (v, unit) => v && !/[가-힣A-Za-z]/.test(String(v).trim()) ? `${String(v).trim()} ${unit}` : v;
     const cargoPdfText = [f.pallet, f.twoTier && '2단적재', ...f.cargoType].filter(Boolean).join(', ');
