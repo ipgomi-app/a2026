@@ -603,7 +603,7 @@ function KPPTransportApp() {
     setMargin(MARGIN_DEFAULT);
   };
   const generatePdf = () => {
-    if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
+    if (!kppRate && tab !== 'scan') { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
     const phoneDigits = repPhone.replace(/\D/g, '');
     const phoneValid = !repPhone.trim()
       || /^01[0-9]{8,9}$/.test(phoneDigits)      // 휴대폰: 010~019 + 7~8자리 (총 10~11)
