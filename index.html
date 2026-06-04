@@ -258,15 +258,16 @@ function KPPTransportApp() {
   const [repPhone, setRepPhone] = useState(() => { try { return localStorage.getItem('kpp_rep_phone') || ''; } catch { return ''; } });
   const textareaRef = useRef();
   const logTextareaRef = useRef();
-  const [scanDep, setScanDep] = useState('부산');
-  const [scanTonIdx, setScanTonIdx] = useState(3);
-  const [manualRows, setManualRows] = useState([
+  const EMPTY_ROWS = [
     { region: '', dest: '', rate: '', count: '' },
     { region: '', dest: '', rate: '', count: '' },
     { region: '', dest: '', rate: '', count: '' },
     { region: '', dest: '', rate: '', count: '' },
     { region: '', dest: '', rate: '', count: '' },
-  ]);
+  ];
+  const [scanDep, setScanDep] = useState(() => { try { return localStorage.getItem('kpp_scan_dep') || '부산'; } catch { return '부산'; } });
+  const [scanTonIdx, setScanTonIdx] = useState(() => { try { const v = localStorage.getItem('kpp_scan_ton'); return v != null ? Number(v) : 3; } catch { return 3; } });
+  const [manualRows, setManualRows] = useState(() => { try { const d = localStorage.getItem('kpp_manual_rows'); return d ? JSON.parse(d) : EMPTY_ROWS; } catch { return EMPTY_ROWS; } });
   const [openCargo, setOpenCargo] = useState(false);
   const [openCust, setOpenCust] = useState(false);
 
@@ -563,15 +564,13 @@ function KPPTransportApp() {
 
   // 입력값 임시 저장(새로고침/당겨서 새로고침 시 유지). 초기화 버튼을 누를 때만 비움.
   useEffect(() => { try { localStorage.setItem('kpp_draft', JSON.stringify(f)); } catch {} }, [f]);
+  useEffect(() => { try { localStorage.setItem('kpp_scan_dep', scanDep); } catch {} }, [scanDep]);
+  useEffect(() => { try { localStorage.setItem('kpp_scan_ton', String(scanTonIdx)); } catch {} }, [scanTonIdx]);
+  useEffect(() => { try { localStorage.setItem('kpp_manual_rows', JSON.stringify(manualRows)); } catch {} }, [manualRows]);
   const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); setMargin(MARGIN_DEFAULT); };
   const resetScan = () => {
-    setManualRows([
-      { region: '', dest: '', rate: '', count: '' },
-      { region: '', dest: '', rate: '', count: '' },
-      { region: '', dest: '', rate: '', count: '' },
-      { region: '', dest: '', rate: '', count: '' },
-      { region: '', dest: '', rate: '', count: '' },
-    ]);
+    try { localStorage.removeItem('kpp_scan_dep'); localStorage.removeItem('kpp_scan_ton'); localStorage.removeItem('kpp_manual_rows'); } catch {}
+    setManualRows(EMPTY_ROWS);
     setScanDep('부산');
     setScanTonIdx(3);
     setMargin(MARGIN_DEFAULT);
