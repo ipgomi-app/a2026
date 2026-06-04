@@ -858,15 +858,32 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       ...(specialConds.length > 0 ? [['특수 조건', `${specialConds.join('·')} — 별도협의`]] : []),
     ].map(([l, v]) => `<tr><td style="width:30%">${l}</td><td>${v}</td></tr>`).join('');
 
-    // 운임 분석 섹션 (도착지별 단가 비교) — 색상 반전: KPP 쌈=빨강, 비쌈=초록
-    const scanSecRows = (manualKPP && tab === 'scan') ? manualKPP.rows.map(r => {
-      const dn = r.save !== null && r.save > 0;   // KPP 저렴
-      const up = r.save !== null && r.save < 0;   // KPP 비쌈
-      const clr = dn ? '#dc2626' : up ? '#15803d' : '#64748b';
-      const by = carrierBY(r.carrier);
-      const diff = r.save !== null ? `${dn ? '▼' : '▲'} ${Math.abs(r.pct)}%` : '—';
-      return `<tr><td>${r.지역} <span style="color:#94a3b8">${r.톤}</span></td><td class="r">${r.existRate ? fmt(r.existRate) : '-'}</td><td class="r">${r.kppRate ? fmt(r.kppRate) : '-'}${by ? ` (${by})` : ''}</td><td class="r" style="color:${clr};font-weight:bold">${diff}</td></tr>`;
-    }).join('') : '';
+    // 운임 분석 섹션 — 입력구간 합계 비교 (화면 운송사별 표와 동일 구조)
+    const scanSecRows = (manualKPP && tab === 'scan') ? (() => {
+      const mAmt2 = (rate, cnt) => rate ? (cnt > 0 ? rate * cnt : rate) : 0;
+      const rows = manualKPP.rows;
+      const sY = rows.reduce((s, r) => s + mAmt2(r.rateYt, r.count), 0);
+      const sB = rows.reduce((s, r) => s + mAmt2(r.rateBg, r.count), 0);
+      const sE = rows.reduce((s, r) => s + mAmt2(r.existRate, r.count), 0);
+      const cntY = rows.filter(r => r.rateYt > 0).length;
+      const cntB = rows.filter(r => r.rateBg > 0).length;
+      const yF = cntY !== cntB ? cntY > cntB : (sY > 0 && sB > 0 ? sY <= sB : sY > 0);
+      const c1 = { label: yF ? 'Y' : 'B', key: yF ? 'rateYt' : 'rateBg', sum: yF ? sY : sB };
+      const dataRows = rows.map(r => {
+        const cnt = r.count || 0;
+        const eAmt = mAmt2(r.existRate, cnt);
+        const c1Amt = mAmt2(r[c1.key], cnt);
+        const isMain = r.isMain;
+        const sub = `${r.톤}/${cnt > 0 ? cnt + '회' : '-'}`;
+        return `<tr>
+<td>${r.지역}${isMain ? ' <span style="background:#0c447c;color:#fff;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700">주</span>' : ''}<br><span style="color:#6b7280;font-size:9px">${sub}</span></td>
+<td class="r">${eAmt ? fmtK(eAmt) : '-'}</td>
+<td class="r" style="color:#dc2626;font-weight:700">${c1Amt ? fmtK(c1Amt) : '-'}</td>
+</tr>`;
+      }).join('');
+      const totRow = `<tr style="font-weight:700;background:#0c447c;color:#fff"><td>합계</td><td class="r" style="color:#fff">${fmtK(sE)}</td><td class="r" style="color:#fca5a5">${fmtK(c1.sum)}</td></tr>`;
+      return `<thead><tr><th>지역·톤수/횟수</th><th>현단가(천원)</th><th>1순위(${c1.label})(천원)</th></tr></thead><tbody>${dataRows}${totRow}</tbody>`;
+    })() : '';
     const nRoi = effRoiRows ? 1 : 0, nScan = scanSecRows ? 1 : 0;
     const secScanNo = 2 + nRoi;
     const secNoticeNo = 2 + nRoi + nScan;
@@ -928,7 +945,7 @@ ${kpiHtml}
 ${effRoiRows ? `<div class="sec">${effRoiTitle}</div>
 <table><tr><th>구분</th><th>금액</th></tr>${effRoiRows}</table>` : ''}
 
-${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 비교)</div>
+${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합계 비교)</div>
 <div style="font-size:9px;color:#64748b;margin:2px 0 0">${effScanDep} 출발 · ${TONS[scanTonIdx]} 기준 · ▼ KPP 저렴 / ▲ KPP 비쌈</div>
 <table><tr><th>지역·톤수</th><th>현재단가</th><th>KPP최저</th><th>차이</th></tr>${scanSecRows}</table>` : ''}
 
