@@ -1874,7 +1874,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden', marginBottom: 4 }}>
                   {/* 헤더: 4열 */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.85fr', padding: '8px 10px', background: NAVY }}>
-                    {['지역', '현재단가', 'KPP최저', '차이'].map(h => (
+                    {['지역', '현단가', 'KPP최저', '차이'].map(h => (
                       <div key={h} style={{ fontSize: 10, color: 'rgba(255,255,255,0.95)', fontWeight: 600, letterSpacing: 0.3, textAlign: h !== '지역' ? 'right' : 'left' }}>{h}</div>
                     ))}
                   </div>
@@ -1885,8 +1885,6 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     const byLabel = carrierBY(row.carrier);
                     const byBg = byLabel === 'B' ? NAVY : '#d97706';
                     const cnt = row.count || 0;
-                    const dispRate = row.existRate ? (cnt > 0 ? fmt(row.existRate * cnt) : fmt(row.existRate)) : '—';
-                    const dispKpp = row.kppRate ? (cnt > 0 ? fmt(row.kppRate * cnt) : fmt(row.kppRate)) : '—';
                     return (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.85fr', padding: '9px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: rowBg, alignItems: 'center' }}>
                         {/* 지역 한줄 */}
@@ -1895,12 +1893,12 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                           {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주요</span>}
                           <span style={{ fontSize: 9.5, color: '#b0b8c1', whiteSpace: 'nowrap' }}>{row.톤}{cnt > 0 ? `·${cnt}대` : ''}</span>
                         </div>
-                        {/* 현재단가 (×댓수) */}
-                        <div style={{ fontSize: 11, textAlign: 'right', color: '#6b7280' }}>{dispRate}</div>
-                        {/* KPP최저: 배지+단가 한줄 */}
+                        {/* 현단가 — 단가만 */}
+                        <div style={{ fontSize: 11, textAlign: 'right', color: '#6b7280' }}>{row.existRate ? fmt(row.existRate) : '—'}</div>
+                        {/* KPP최저: 배지+단가 한줄, 우측정렬 */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
                           {byLabel && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff', background: byBg, borderRadius: 4, padding: '2px 5px', flexShrink: 0 }}>{byLabel}</span>}
-                          <span style={{ fontSize: 11, fontWeight: 600, color: row.kppRate ? NAVY : '#999' }}>{dispKpp}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: row.kppRate ? NAVY : '#999' }}>{row.kppRate ? fmt(row.kppRate) : '—'}</span>
                         </div>
                         {/* 차이 */}
                         <div style={{ textAlign: 'right' }}>
