@@ -948,9 +948,10 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
   const accHdr = (open) => ({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', padding: '2px 0 0' });
   const chevron = (open) => ({ fontSize: 12, color: NAVY, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' });
 
-  const canOut = !!(kppRate && f.company.trim());
+  const canOut = !!(kppRate && f.company.trim() && /^\d{6}$/.test(f.code.trim()));
   const outGuard = (then) => {
     if (!f.company.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
+    if (!/^\d{6}$/.test(f.code.trim())) { showToast('고객 코드 6자리를 입력해주세요'); return; }
     if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
     then();
   };
@@ -1184,7 +1185,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>고객 코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수 · 6자리</span>)</label>
-                      <input style={inp} placeholder="예: 123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
+                      <input style={{ ...inp, borderColor: f.code && f.code.length !== 6 ? '#dc2626' : '' }} placeholder="예: 123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
+                      {f.code && f.code.length !== 6 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>6자리를 입력해주세요 ({f.code.length}/6)</div>}
                     </div>
                     <div style={{ flex: 1.5 }}>
                       <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
