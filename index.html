@@ -619,7 +619,9 @@ function KPPTransportApp() {
         const existRate = Number(r.rate);
         const save = kppRate && existRate ? existRate - kppRate : null;
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
-        return { 지역: r.dest, 톤: TONS[scanTonIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct };
+        const rateYt = calcRate(scanDep, r.dest, scanTonIdx, margin);
+        const rateBg = calcBarogo(scanDep, r.dest, scanTonIdx, margin);
+        return { 지역: r.dest, 톤: TONS[scanTonIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg };
       });
     return rows.length > 0 ? { type: 'table', rows, dep: scanDep, 업체명: '직접 입력' } : null;
   }, [manualRows, scanDep, scanTonIdx, margin]);
@@ -1857,6 +1859,36 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         <span style={{ fontSize: 14, fontWeight: 700, color: pctAvg >= 0 ? '#dc2626' : '#16a34a' }}>평균 {pctAvg >= 0 ? '▼' : '▲'} {Math.abs(pctAvg)}%</span>
                       </div>
                     ) : null;
+                  })()}
+                </div>
+              </div>
+
+              {/* 운송사별 구간 단가 Y / B */}
+              <div style={{ marginTop: 14 }}>
+                <div style={sectionTitle}>운송사별 구간 단가</div>
+                <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '7px 10px', background: NAVY }}>
+                    {['지역', 'Y (YT)', 'B (바로고)'].map((h, i) => (
+                      <div key={h} style={{ fontSize: 10, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+                    ))}
+                  </div>
+                  {manualKPP.rows.map((row, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '7px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.02)', alignItems: 'center' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</div>
+                      <div style={{ fontSize: 11, textAlign: 'right', color: row.rateYt ? NAVY : '#ccc', fontWeight: row.rateYt ? 600 : 400 }}>{row.rateYt ? fmt(row.rateYt) : '—'}</div>
+                      <div style={{ fontSize: 11, textAlign: 'right', color: row.rateBg ? NAVY : '#ccc', fontWeight: row.rateBg ? 600 : 400 }}>{row.rateBg ? fmt(row.rateBg) : '—'}</div>
+                    </div>
+                  ))}
+                  {(() => {
+                    const sumY = manualKPP.rows.reduce((s, r) => s + (r.rateYt || 0), 0);
+                    const sumB = manualKPP.rows.reduce((s, r) => s + (r.rateBg || 0), 0);
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '9px 10px', background: '#f1f5f9', borderTop: '1.5px solid #e2e8f0' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
+                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumY ? NAVY : '#ccc' }}>{sumY ? fmt(sumY) : '—'}</div>
+                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumB ? NAVY : '#ccc' }}>{sumB ? fmt(sumB) : '—'}</div>
+                      </div>
+                    );
                   })()}
                 </div>
               </div>
