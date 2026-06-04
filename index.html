@@ -259,11 +259,11 @@ function KPPTransportApp() {
   const textareaRef = useRef();
   const logTextareaRef = useRef();
   const EMPTY_ROWS = [
-    { region: '', dest: '', rate: '', count: '' },
-    { region: '', dest: '', rate: '', count: '' },
-    { region: '', dest: '', rate: '', count: '' },
-    { region: '', dest: '', rate: '', count: '' },
-    { region: '', dest: '', rate: '', count: '' },
+    { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
+    { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
+    { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
+    { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
+    { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
   ];
   const [scanDep, setScanDep] = useState(() => { try { return localStorage.getItem('kpp_scan_dep') || '부산'; } catch { return '부산'; } });
   const [scanTonIdx, setScanTonIdx] = useState(() => { try { const v = localStorage.getItem('kpp_scan_ton'); return v != null ? Number(v) : 3; } catch { return 3; } });
@@ -639,17 +639,18 @@ function KPPTransportApp() {
       .map((r, origIdx) => ({ ...r, origIdx }))
       .filter(r => r.dest && Number(r.rate) > 0)
       .map(r => {
-        const isMain = r.origIdx < 2; // 주요구간 (0·1번 행)
-        const low = calcLowest(scanDep, r.dest, scanTonIdx, margin);
+        const isMain = r.origIdx < 2;
+        const tIdx = r.tonIdx != null ? Number(r.tonIdx) : scanTonIdx; // 행별 톤수
+        const low = calcLowest(scanDep, r.dest, tIdx, margin);
         const kppRate = low.rate;
         const existRate = Number(r.rate);
         const save = kppRate && existRate ? existRate - kppRate : null;
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
-        const rateYt = calcRate(scanDep, r.dest, scanTonIdx, margin);
-        const rateBg = calcBarogo(scanDep, r.dest, scanTonIdx, margin);
-        const count = Number(r.count) || 0; // 월 댓수
+        const rateYt = calcRate(scanDep, r.dest, tIdx, margin);
+        const rateBg = calcBarogo(scanDep, r.dest, tIdx, margin);
+        const count = Number(r.count) || 0;
         const existMonthly = existRate && count ? existRate * count : null;
-        return { 지역: r.dest, 톤: TONS[scanTonIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg, count, existMonthly, isMain };
+        return { 지역: r.dest, 톤: TONS[tIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg, count, existMonthly, isMain };
       });
     return rows.length > 0 ? { type: 'table', rows, dep: scanDep, 업체명: '직접 입력' } : null;
   }, [manualRows, scanDep, scanTonIdx, margin]);
@@ -1816,17 +1817,17 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   <div key={label} style={card}>
                     <div style={sectionTitle}>{label}</div>
                     {/* 헤더 라벨 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '16px 0.8fr 0.8fr 1fr 0.65fr', gap: 6, marginBottom: 5, paddingLeft: 2 }}>
-                      {['', '지역', '시·군', '단가', '횟수'].map((h, hi) => (
-                        <div key={hi} style={{ fontSize: 10, color: '#9ca3af', textAlign: hi >= 3 ? 'right' : 'left' }}>{h}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '16px 0.75fr 0.75fr 0.8fr 0.85fr 0.55fr', gap: 5, marginBottom: 5, paddingLeft: 2 }}>
+                      {['', '지역', '시·군', '톤수', '단가', '횟수'].map((h, hi) => (
+                        <div key={hi} style={{ fontSize: 10, color: '#9ca3af', textAlign: hi >= 4 ? 'right' : 'left' }}>{h}</div>
                       ))}
                     </div>
                     {indices.map(i => {
                       const row = manualRows[i];
-                      const compactSel = { padding: '8px 5px', fontSize: 12 };
-                      const compactInp = { padding: '8px 6px', fontSize: 12, height: 36, textAlign: 'right' };
+                      const compactSel = { padding: '7px 4px', fontSize: 11 };
+                      const compactInp = { padding: '7px 5px', fontSize: 11, height: 34, textAlign: 'right' };
                       return (
-                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 0.8fr 0.8fr 1fr 0.65fr', alignItems: 'center', gap: 6 }}>
+                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 0.75fr 0.75fr 0.8fr 0.85fr 0.55fr', alignItems: 'center', gap: 5 }}>
                           <div style={{ fontSize: 10, color: '#9ca3af' }}>#{i + 1}</div>
                           <select className="selChip" style={{ ...compactSel }} value={row.region} onChange={e => updateManualRow(i, 'region', e.target.value)}>
                             <option value="">지역</option>
@@ -1835,6 +1836,9 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                           <select className="selChip" style={{ ...compactSel }} value={row.dest} onChange={e => updateManualRow(i, 'dest', e.target.value)} disabled={!row.region}>
                             <option value="">시·군</option>
                             {row.region && REGIONS[row.region].map(d => <option key={d}>{d}</option>)}
+                          </select>
+                          <select className="selChip" style={{ ...compactSel }} value={row.tonIdx != null ? row.tonIdx : 3} onChange={e => updateManualRow(i, 'tonIdx', Number(e.target.value))} disabled={!row.dest}>
+                            {TONS.map((t, ti) => <option key={ti} value={ti}>{t}</option>)}
                           </select>
                           <input
                             style={{ ...inp, ...compactInp, background: !row.dest ? '#f3f4f6' : '#fff', color: !row.dest ? '#9ca3af' : '#111' }}
