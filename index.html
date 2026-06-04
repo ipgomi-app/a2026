@@ -1979,13 +1979,15 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                             <div style={{ fontSize: 11, textAlign: 'right', color: existAmt ? '#374151' : '#ccc' }}>{fmtK(existAmt)}</div>
                             {/* col2 저렴 (천원) */}
                             <div style={{ fontSize: 11, textAlign: 'right', color: v2Amt ? '#dc2626' : '#ccc', fontWeight: v2Amt ? 700 : 400 }}>{fmtK(v2Amt)}</div>
-                            {/* 차이% */}
+                            {/* 차이: (±N) 괄호 금액 */}
                             <div style={{ textAlign: 'right' }}>
-                              {row.save !== null ? (
-                                <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 4px', borderRadius: 20, color: row.save > 0 ? '#dc2626' : '#16a34a', background: row.save > 0 ? '#fee2e2' : '#dcfce7' }}>
-                                  {row.save > 0 ? '▼' : '▲'}{Math.abs(row.pct)}%
-                                </span>
-                              ) : <span style={{ fontSize: 10, color: '#ccc' }}>—</span>}
+                              {existAmt && v2Amt ? (() => {
+                                const diff = existAmt - v2Amt;
+                                const cheaper = diff > 0; // KPP 저렴
+                                return <span style={{ fontSize: 10, fontWeight: 700, color: cheaper ? '#dc2626' : '#16a34a' }}>
+                                  ({cheaper ? '-' : '+'}{Math.round(Math.abs(diff)/1000).toLocaleString()})
+                                </span>;
+                              })() : <span style={{ fontSize: 10, color: '#ccc' }}>—</span>}
                             </div>
                             {/* col3 비쌈 (천원) */}
                             <div style={{ fontSize: 11, textAlign: 'right', color: v3Amt ? NAVY : '#ccc', fontWeight: v3Amt ? 600 : 400 }}>{fmtK(v3Amt)}</div>
@@ -1997,7 +1999,15 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumExist ? '#374151' : '#ccc' }}>{fmtK(sumExist)}</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{fmtK(col2.sum)}</div>
-                        <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>
+                        {/* 합계 차이: 총 금액 */}
+                        {(() => {
+                          const totalDiff = sumExist - col2.sum;
+                          if (!totalDiff) return <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>;
+                          const cheaper = totalDiff > 0;
+                          return <div style={{ textAlign: 'right', fontSize: 11, fontWeight: 700, color: cheaper ? '#dc2626' : '#16a34a' }}>
+                            ({cheaper ? '-' : '+'}{Math.round(Math.abs(totalDiff)/1000).toLocaleString()})
+                          </div>;
+                        })()}
                         {/* col3: 합계 금액 */}
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{fmtK(col3.sum)}</div>
                       </div>
