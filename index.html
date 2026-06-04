@@ -1318,7 +1318,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
         {showAdmin && (
           adminAuthed ? (
             /* ── 인증 후: 전체화면 ── */
-            <div style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', overscrollBehavior: 'none' }}
+              onTouchMove={e => e.stopPropagation()}>
               {/* 상단 헤더 */}
               <div style={{ background: NAVY, padding: '14px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>🛠️ 관리자 통계</div>
@@ -1361,7 +1362,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 </div>
               </div>
               {/* 콘텐츠 스크롤 영역 */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 24px' }} dangerouslySetInnerHTML={{ __html: adminTab === 'mgr' ? admDashHTML() : salesDashHTML() }} />
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 24px', overscrollBehaviorY: 'contain' }} dangerouslySetInnerHTML={{ __html: adminTab === 'mgr' ? admDashHTML() : salesDashHTML() }} />
               {/* 하단 로그아웃 */}
               <div style={{ background: '#fff', borderTop: '1px solid #e5e7eb', padding: '10px 16px', flexShrink: 0 }}>
                 <button onClick={() => { try { localStorage.removeItem('kpp_read_token'); } catch {} setAdminAuthed(false); setReadToken(''); setShowAdmin(false); setAdminTab('mgr'); }}
