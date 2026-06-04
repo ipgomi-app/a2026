@@ -61,9 +61,13 @@
   document.addEventListener('touchstart', function(e) { _ptrStartY = e.touches[0].clientY; }, { passive: true });
   document.addEventListener('touchmove', function(e) {
     if (e.touches.length > 1) return;
-    var el = e.target;
+    var t = e.target;
+    // 폼 요소 자체는 건드리지 않음 (텍스트 선택·드래그 허용)
+    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return;
+    var el = t;
     while (el && el !== document.documentElement) {
-      if (el.scrollHeight > el.clientHeight) {
+      var ov = window.getComputedStyle(el).overflowY;
+      if ((ov === 'auto' || ov === 'scroll') && el.scrollHeight > el.clientHeight) {
         if (el.scrollTop > 0) return;
         if (e.touches[0].clientY <= _ptrStartY) return;
         e.preventDefault(); return;
