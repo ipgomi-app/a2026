@@ -1951,8 +1951,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                               }}>
                               <option value="">지역 선택</option>
                               {Object.keys(REGIONS).map(r => <option key={r}>{r}</option>)}
-                              {row.region && <option value="__RESET__" style={{ color: '#9ca3af', borderTop: '1px solid #e5e7eb' }}>─────────────</option>}
-                              {row.region && <option value="__RESET__" style={{ color: '#ef4444' }}>↺ 초기화</option>}
+                              {row.region && <option value="__RESET__" style={{ color: '#ef4444', fontWeight: 700 }}>↺  초기화</option>}
                             </select>
                             {/* 시·군 select — 지역 선택 후 & 시군 미선택 시 최상위 */}
                             {row.region && (
