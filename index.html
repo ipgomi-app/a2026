@@ -1811,7 +1811,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 {/* ── 구간 입력 공통 렌더 함수 ── */}
                 {[
                   { label: '주요 구간', indices: [0, 1] },
-                  { label: '나머지 구간', indices: [2, 3, 4] },
+                  { label: '나머지 구간(선택)', indices: [2, 3, 4] },
                 ].map(({ label, indices }) => (
                   <div key={label} style={card}>
                     <div style={sectionTitle}>{label}</div>
@@ -1944,7 +1944,6 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                           i === 2
                             ? <div key="주요구간" style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600 }}>주요구간</div>
-                                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>Y · B</div>
                               </div>
                             : <div key={h} style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
                         ))}
@@ -1961,9 +1960,14 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                             </div>
                             {/* 업체현단가 */}
                             <div style={{ fontSize: 11, textAlign: 'right', color: row.existRate ? '#374151' : '#ccc' }}>{row.existRate ? fmt(row.existRate) : '—'}</div>
-                            {/* 주요단가: isMain만 표시 */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: row.isMain && row.kppRate ? '#374151' : '#e5e7eb', fontWeight: row.isMain && row.kppRate ? 600 : 400 }}>
-                              {row.isMain && row.kppRate ? fmt(row.kppRate) : '—'}
+                            {/* 주요구간: isMain만 표시 + 캐리어 배지 */}
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: 11, color: row.isMain && row.kppRate ? '#374151' : '#e5e7eb', fontWeight: row.isMain && row.kppRate ? 600 : 400 }}>
+                                {row.isMain && row.kppRate ? fmt(row.kppRate) : '—'}
+                              </div>
+                              {row.isMain && row.kppRate && carrierBY(row.carrier) && (
+                                <span style={{ display: 'inline-block', fontSize: 8, fontWeight: 700, color: '#fff', background: NAVY, borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>{carrierBY(row.carrier)}</span>
+                              )}
                             </div>
                             {/* col2 (저렴) */}
                             <div style={{ fontSize: 11, textAlign: 'right', color: v2 ? '#dc2626' : '#ccc', fontWeight: v2 ? 700 : 400 }}>{v2 ? fmt(v2) : '—'}</div>
