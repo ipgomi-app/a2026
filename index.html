@@ -875,21 +875,21 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
         const eAmt = mAmt2(r.existRate, cnt);
         const c1Amt = mAmt2(r[c1.key], cnt);
         const diff = c1Amt && eAmt ? c1Amt - eAmt : null;
-        const diffStr = diff !== null ? `${diff > 0 ? '+' : ''}${fmtK(diff)}` : '—';
+        const diffStr = diff !== null ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '—';
         const diffClr = diff === null ? '#64748b' : diff < 0 ? '#dc2626' : '#15803d';
         const badge = r.isMain ? ' <span style="background:#0c447c;color:#fff;font-size:7px;padding:1px 3px;border-radius:2px;font-weight:700;vertical-align:middle">주</span>' : '';
         const sub = `${r.톤}/${cnt > 0 ? cnt + '회' : '-'}`;
         return `<tr>
 <td>${r.지역}${badge} <span style="color:#6b7280;font-size:9px">${sub}</span></td>
-<td class="r">${eAmt ? fmtK(eAmt) : '-'}</td>
-<td class="r" style="color:#dc2626;font-weight:700">${c1Amt ? fmtK(c1Amt) : '-'}</td>
+<td class="r">${eAmt ? fmt(eAmt) : '-'}</td>
+<td class="r" style="color:#dc2626;font-weight:700">${c1Amt ? fmt(c1Amt) : '-'}</td>
 <td class="r" style="color:${diffClr};font-weight:700">${diffStr}</td>
 </tr>`;
       }).join('');
       const totDiff = c1.sum && sE ? c1.sum - sE : null;
-      const totDiffStr = totDiff !== null ? `${totDiff > 0 ? '+' : ''}${fmtK(totDiff)}` : '—';
+      const totDiffStr = totDiff !== null ? `${totDiff > 0 ? '+' : ''}${fmt(totDiff)}` : '—';
       const totDiffClr = totDiff === null ? '#fff' : totDiff < 0 ? '#fca5a5' : '#86efac';
-      const totRow = `<tr style="font-weight:700;background:#0c447c;color:#fff"><td>합계</td><td class="r">${fmtK(sE)}</td><td class="r" style="color:#fca5a5">${fmtK(c1.sum)}</td><td class="r" style="color:${totDiffClr}">${totDiffStr}</td></tr>`;
+      const totRow = `<tr style="font-weight:700;background:#0c447c;color:#fff"><td>합계</td><td class="r">${fmt(sE)}</td><td class="r" style="color:#fca5a5">${fmt(c1.sum)}</td><td class="r" style="color:${totDiffClr}">${totDiffStr}</td></tr>`;
       return { label: c1.label, rows: dataRows + totRow };
     })() : null;
     const scanSecRows = scanSecMeta ? scanSecMeta.rows : '';
@@ -955,7 +955,7 @@ ${effRoiRows ? `<div class="sec">${effRoiTitle}</div>
 <table><tr><th>구분</th><th>금액</th></tr>${effRoiRows}</table>` : ''}
 
 ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합계 비교)</div>
-<table><tr><th>지역</th><th>현단가(천원)</th><th>1순위(${scanSecMeta.label})(천원)</th><th>차이</th></tr>${scanSecRows}</table>` : ''}
+<table><tr><th>지역</th><th>현단가</th><th>KPP 최저단가</th><th>차이</th></tr>${scanSecRows}</table>` : ''}
 
 <div class="sec">${secNoticeNo}. 안내 사항</div>
 <table>${noticeRows}</table>
