@@ -203,7 +203,7 @@ const readSaved = () => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)
 const writeSaved = (arr) => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(arr)); } catch {} };
 
 function KPPTransportApp() {
-  const [tab, setTab] = useState('quote');
+  const [tab, setTab] = useState(() => { try { return localStorage.getItem('kpp_tab') || 'quote'; } catch { return 'quote'; } });
   const [f, setF] = useState(() => { try { const d = localStorage.getItem('kpp_draft'); return d ? { ...INIT, ...JSON.parse(d) } : INIT; } catch { return INIT; } });
   const [copied, setCopied] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -564,6 +564,7 @@ function KPPTransportApp() {
 
   // 입력값 임시 저장(새로고침/당겨서 새로고침 시 유지). 초기화 버튼을 누를 때만 비움.
   useEffect(() => { try { localStorage.setItem('kpp_draft', JSON.stringify(f)); } catch {} }, [f]);
+  useEffect(() => { try { localStorage.setItem('kpp_tab', tab); } catch {} }, [tab]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_dep', scanDep); } catch {} }, [scanDep]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_ton', String(scanTonIdx)); } catch {} }, [scanTonIdx]);
   useEffect(() => { try { localStorage.setItem('kpp_manual_rows', JSON.stringify(manualRows)); } catch {} }, [manualRows]);
