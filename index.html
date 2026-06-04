@@ -118,6 +118,18 @@ const SHEET_TOKEN = 'kpp-stats-2026';
 // 견적 저장 시 [등급, 동행, 담당자, 업체명, 코드, 금액, 사유] 전송 (fire-and-forget)
 // 시트 전송 마스킹(전체 데이터는 폰 로컬에만): 업체명=앞2자리+마스킹(민승**·전사 유사검사용), 코드·금액·담당자=마스킹 안 함
 const maskSheetCompany = (s) => { s = String(s || ''); return s.length > 2 ? s.slice(0, 2) + '*'.repeat(s.length - 2) : s; };
+// 편집거리(Levenshtein) — 코드 유사 감지용. O(mn), 코드 6자리 기준 충분히 빠름
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
 function logToSheet(p) {
   if (!SHEET_WEBAPP_URL || !p || !p.name) return;
   try {
@@ -221,7 +233,7 @@ function KPPTransportApp() {
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false); // 기존 견적 갱신 확인
   const [updateWhen, setUpdateWhen] = useState('');
   const [showCodeCheck, setShowCodeCheck] = useState(false); // 업체명 일치·코드 불일치 재확인
-  const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCompany: '', existCode: '', inputCode: '' });
+  const [codeCheckInfo, setCodeCheckInfo] = useState({ type: 'name', company: '', existCompany: '', existCode: '', inputCode: '' });
   const [checkingSheet, setCheckingSheet] = useState(false); // 저장 시 전사(시트) 유사업체 조회 중
   const [readToken, setReadToken] = useState(() => { try { return localStorage.getItem('kpp_read_token') || ''; } catch { return ''; } }); // 관리자 인증 후 파생 — 영구 유지(localStorage)
   const [newHashForUpdate, setNewHashForUpdate] = useState(''); // 해시 강화용 — 관리자 패널에 표시
@@ -319,21 +331,33 @@ function KPPTransportApp() {
     // 같은 코드의 기존 견적 → 갱신 확인
     const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
     if (idx !== -1 && action !== 'update') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
-    // 코드는 다른데 업체명이 같거나 유사(앞 2자리 일치) → 코드 오입력 가능성 안내(전사=시트 기준, 오프라인 시 로컬 폴백)
+    // 코드 유사(편집거리≤2) 또는 업체명 유사(앞 2자리 일치) → 코드 오입력 가능성 안내
     if (idx === -1 && action !== 'force') {
       const f2 = company.slice(0, 2);
-      let match = null;
+      let codeMatch = null; // 코드 유사
+      let nameMatch = null; // 업체명 유사
       try {
         setCheckingSheet(true);
         const rows = await fetchSheetRows(readToken); // 전사 조회 (~1~3초)
-        match = rows.find(r => { const rc = String(r.code || '').trim(); const rn = String(r.company || ''); return rc && rc !== code && f2.length >= 2 && rn.slice(0, 2) === f2; });
-        if (match) match = { company: String(match.company || ''), code: String(match.code || '').trim() };
+        // 1) 코드 유사 (편집거리 ≤ 2, 완전 일치 제외) — 전치·오타·자릿수 실수 감지
+        const cm = rows.find(r => { const rc = String(r.code || '').trim(); return rc && rc !== code && levenshtein(rc, code) <= 2; });
+        if (cm) codeMatch = { company: String(cm.company || ''), code: String(cm.code || '').trim() };
+        // 2) 업체명 유사 (앞 2자리 일치, 코드 다름) — 코드 유사 없을 때만
+        if (!codeMatch) {
+          const nm = rows.find(r => { const rc = String(r.code || '').trim(); const rn = String(r.company || ''); return rc && rc !== code && f2.length >= 2 && rn.slice(0, 2) === f2; });
+          if (nm) nameMatch = { company: String(nm.company || ''), code: String(nm.code || '').trim() };
+        }
       } catch (e) {
         // 시트 조회 실패(오프라인 등) → 로컬 기록으로 폴백
-        const lm = list.find(x => { if ((x.code || '').trim() === code) return false; const xc = (x.company || '').trim(); return xc === company || (f2.length >= 2 && xc.slice(0, 2) === f2); });
-        if (lm) match = { company: (lm.company || '').trim(), code: (lm.code || '').trim() };
+        const lcm = list.find(x => { const xc = (x.code || '').trim(); return xc && xc !== code && levenshtein(xc, code) <= 2; });
+        if (lcm) codeMatch = { company: (lcm.company || '').trim(), code: (lcm.code || '').trim() };
+        if (!codeMatch) {
+          const lm = list.find(x => { if ((x.code || '').trim() === code) return false; const xc = (x.company || '').trim(); return xc === company || (f2.length >= 2 && xc.slice(0, 2) === f2); });
+          if (lm) nameMatch = { company: (lm.company || '').trim(), code: (lm.code || '').trim() };
+        }
       } finally { setCheckingSheet(false); }
-      if (match) { setCodeCheckInfo({ company, existCompany: match.company, existCode: match.code, inputCode: code }); setShowCodeCheck(true); return; }
+      if (codeMatch) { setCodeCheckInfo({ type: 'code', company, existCompany: codeMatch.company, existCode: codeMatch.code, inputCode: code }); setShowCodeCheck(true); return; }
+      if (nameMatch) { setCodeCheckInfo({ type: 'name', company, existCompany: nameMatch.company, existCode: nameMatch.code, inputCode: code }); setShowCodeCheck(true); return; }
     }
     const rec = {
       id: idx !== -1 ? list[idx].id : Date.now(), company, code,
@@ -1565,14 +1589,20 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               style={{ background: '#fff', borderRadius: 16, padding: '24px 20px 18px', maxWidth: 320, width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
               onClick={e => e.stopPropagation()}
             >
-              <div style={{ fontSize: 26, marginBottom: 10 }}>⚠️</div>
+              <div style={{ fontSize: 26, marginBottom: 10 }}>{codeCheckInfo.type === 'code' ? '🔢' : '⚠️'}</div>
               <div style={{ fontSize: 14.5, fontWeight: 700, color: '#111', marginBottom: 8, lineHeight: 1.5 }}>
-                기존 업체와 <b style={{ color: '#dc2626' }}>유사한 업체명</b>입니다
+                {codeCheckInfo.type === 'code'
+                  ? <>기존 업체와 <b style={{ color: '#dc2626' }}>유사한 코드</b>가 있습니다</>
+                  : <>기존 업체와 <b style={{ color: '#dc2626' }}>유사한 업체명</b>입니다</>}
               </div>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 14, lineHeight: 1.7 }}>
                 입력 <b style={{ color: NAVY }}>{codeCheckInfo.company}</b> ({codeCheckInfo.inputCode})<br />
                 기존 <b style={{ color: '#475569' }}>{codeCheckInfo.existCompany}</b> ({codeCheckInfo.existCode})
-                <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 6 }}>코드가 다릅니다. 코드를 다시 확인하세요.</div>
+                <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 6 }}>
+                  {codeCheckInfo.type === 'code'
+                    ? '코드 숫자가 유사합니다. 전치·오타 여부를 확인하세요.'
+                    : '코드가 다릅니다. 코드를 다시 확인하세요.'}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
