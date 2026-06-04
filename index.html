@@ -265,11 +265,14 @@ function KPPTransportApp() {
     { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
     { region: '', dest: '', rate: '', count: '', tonIdx: 3 },
   ];
-  const [scanDep, setScanDep] = useState(() => { try { return localStorage.getItem('kpp_scan_dep') || '부산'; } catch { return '부산'; } });
+  const [scanDep, setScanDep] = useState(() => { try { return localStorage.getItem('kpp_scan_dep') || ''; } catch { return ''; } });
   const [scanTonIdx, setScanTonIdx] = useState(() => { try { const v = localStorage.getItem('kpp_scan_ton'); return v != null ? Number(v) : 3; } catch { return 3; } });
   const [manualRows, setManualRows] = useState(() => { try { const d = localStorage.getItem('kpp_manual_rows'); return d ? JSON.parse(d) : EMPTY_ROWS; } catch { return EMPTY_ROWS; } });
   const [scanCompany, setScanCompany] = useState(() => { try { return localStorage.getItem('kpp_scan_company') || ''; } catch { return ''; } });
   const [scanCode, setScanCode] = useState(() => { try { return localStorage.getItem('kpp_scan_code') || ''; } catch { return ''; } });
+  const effScanDep = scanDep || f.dep || '부산';
+  const effScanCompany = scanCompany || f.company;
+  const effScanCode = scanCode || f.code;
   const [openCargo, setOpenCargo] = useState(false);
   const [openCust, setOpenCust] = useState(false);
 
@@ -647,19 +650,19 @@ function KPPTransportApp() {
       .map(r => {
         const isMain = r.origIdx < 2;
         const tIdx = r.tonIdx != null ? Number(r.tonIdx) : scanTonIdx; // 행별 톤수
-        const low = calcLowest(scanDep, r.dest, tIdx, margin);
+        const low = calcLowest(effScanDep, r.dest, tIdx, margin);
         const kppRate = low.rate;
         const existRate = Number(r.rate);
         const save = kppRate && existRate ? existRate - kppRate : null;
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
-        const rateYt = calcRate(scanDep, r.dest, tIdx, margin);
-        const rateBg = calcBarogo(scanDep, r.dest, tIdx, margin);
+        const rateYt = calcRate(effScanDep, r.dest, tIdx, margin);
+        const rateBg = calcBarogo(effScanDep, r.dest, tIdx, margin);
         const count = Number(r.count) || 0;
         const existMonthly = existRate && count ? existRate * count : null;
         return { 지역: r.dest, 톤: TONS[tIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg, count, existMonthly, isMain };
       });
-    return rows.length > 0 ? { type: 'table', rows, dep: scanDep, 업체명: '직접 입력' } : null;
-  }, [manualRows, scanDep, scanTonIdx, margin]);
+    return rows.length > 0 ? { type: 'table', rows, dep: effScanDep, 업체명: '직접 입력' } : null;
+  }, [manualRows, scanDep, f.dep, scanTonIdx, margin]);
 
   const carrierBY = c => c === 'YT' ? 'Y' : c === '바로고' ? 'B' : '';
   const scanStats = (() => {
@@ -672,7 +675,7 @@ function KPPTransportApp() {
   })();
   const scanQuoteText = (manualKPP && tab === 'scan') ? `
 ━━━━━━━━━━━━━━
-[운임 분석] ${scanDep} 출발 · ${TONS[scanTonIdx]}
+[운임 분석] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
 ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${carrierBY(r.carrier) ? '(' + carrierBY(r.carrier) + ')' : ''}${r.save !== null ? ` ${r.save > 0 ? '▼' : '▲'}${Math.abs(r.pct)}%` : ''}`).join('\n')}${scanStats ? `
 ▶ KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간 · 평균 ${scanStats.pctAvg >= 0 ? '▼' : '▲'}${Math.abs(scanStats.pctAvg)}%` : ''}` : '';
   const scanLogLine = (scanStats && tab === 'scan') ? `    · 운임 분석 : KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간, 평균 ${scanStats.pctAvg >= 0 ? '↓' : '↑'}${Math.abs(scanStats.pctAvg)}%
@@ -888,7 +891,7 @@ ${roiRows ? `<div class="sec">2. 비용 비교 분석</div>
 <table><tr><th>구분</th><th>금액</th></tr>${roiRows}</table>` : ''}
 
 ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 비교)</div>
-<div style="font-size:9px;color:#64748b;margin:2px 0 0">${scanDep} 출발 · ${TONS[scanTonIdx]} 기준 · ▼ KPP 저렴 / ▲ KPP 비쌈</div>
+<div style="font-size:9px;color:#64748b;margin:2px 0 0">${effScanDep} 출발 · ${TONS[scanTonIdx]} 기준 · ▼ KPP 저렴 / ▲ KPP 비쌈</div>
 <table><tr><th>지역·톤수</th><th>현재단가</th><th>KPP최저</th><th>차이</th></tr>${scanSecRows}</table>` : ''}
 
 <div class="sec">${secNoticeNo}. 안내 사항</div>
@@ -951,17 +954,17 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
     if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
     then();
   };
-  const canScanOut = !!(manualKPP && scanCompany.trim() && scanCode.trim().length === 6);
+  const canScanOut = !!(manualKPP && effScanCompany.trim() && effScanCode.trim().length === 6);
   const scanOutGuard = (then) => {
-    if (!scanCompany.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
-    if (scanCode.trim().length !== 6) { showToast('고객 코드 6자리를 입력해주세요'); return; }
+    if (!effScanCompany.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
+    if (effScanCode.trim().length !== 6) { showToast('고객 코드 6자리를 입력해주세요'); return; }
     if (!manualKPP) { showToast('운임 데이터를 먼저 입력해주세요'); return; }
     then();
   };
   const doScanSave = () => {
     const now = new Date(); const ym = now.getFullYear() * 100 + now.getMonth() + 1;
     const list = readSaved();
-    const code = scanCode.trim().toUpperCase(); const company = scanCompany.trim();
+    const code = effScanCode.trim().toUpperCase(); const company = effScanCompany.trim();
     const idx = list.findIndex(x => x.code === code && x.type === 'scan');
     const rec = { id: idx !== -1 ? list[idx].id : Date.now(), company, code, type: 'scan', savedAt: now.toLocaleDateString('ko-KR'), ts: now.getTime(), ym, scan: { manualRows, scanDep, scanTonIdx } };
     if (idx !== -1) list[idx] = rec; else list.push(rec);
@@ -1822,20 +1825,20 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   {/* 출발지 — ORIGIN 박스 (소형) */}
                   <div style={{ position: 'relative', background: '#0c3460', borderRadius: 10, padding: '6px 10px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <div style={{ fontSize: 7, fontWeight: 700, color: '#93c5fd', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 1 }}>ORIGIN</div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{scanDep}</div>
-                    <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={scanDep} onChange={e => setScanDep(e.target.value)}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{effScanDep}</div>
+                    <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={effScanDep} onChange={e => setScanDep(e.target.value)}>
                       {DEPARTURES.map(d => <option key={d}>{d}</option>)}
                     </select>
                   </div>
                   {/* 코드 */}
                   <div style={{ flex: '0 0 90px' }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
-                    <input style={inp} placeholder="123456" inputMode="numeric" maxLength={6} value={scanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+                    <input style={inp} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
                   </div>
                   {/* 고객사명 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                    <input style={inp} placeholder="(주)민승" value={scanCompany} onChange={e => setScanCompany(e.target.value)} />
+                    <input style={inp} placeholder="(주)민승" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
                   </div>
                 </div>
 
@@ -1918,7 +1921,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               <div style={{ marginTop: 12 }}>
                 <div style={{ ...card, paddingBottom: 8 }}>
                   {/* 1. 제목 수정 */}
-                  <div style={sectionTitle}>구간별 운임비교(1회) / {scanDep} 출발 · {TONS[scanTonIdx]} 비교</div>
+                  <div style={sectionTitle}>구간별 운임비교(1회) / {effScanDep} 출발 · {TONS[scanTonIdx]} 비교</div>
                   <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10 }}>
                     ▼ KPP가 저렴 &nbsp;|&nbsp; ▲ KPP가 비쌈
                   </div>
