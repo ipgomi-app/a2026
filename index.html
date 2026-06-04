@@ -1316,70 +1316,75 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
 
         {/* 관리자 통계 모달 */}
         {showAdmin && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
-            onClick={() => setShowAdmin(false)}>
-            <div style={{ background: '#fff', borderRadius: '18px 18px 0 0', padding: '18px 16px 24px', maxWidth: 480, width: '100%', margin: '0 auto', boxSizing: 'border-box', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
-              onClick={e => e.stopPropagation()}>
-              <div style={{ width: 38, height: 4, background: '#d1d5db', borderRadius: 2, margin: '0 auto 14px' }} />
-              {!adminAuthed ? (
-                <>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 4 }}>🛠️ 관리자</div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 14 }}>비밀번호를 입력하세요</div>
-                  <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') verifyAdmin(); }}
-                    placeholder="비밀번호" style={{ ...inp }} autoFocus />
-                  <button onClick={verifyAdmin} style={{ width: '100%', marginTop: 14, padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}>확인</button>
-                  <button onClick={() => { setShowAdmin(false); setShowLoadSheet(true); }} style={{ width: '100%', marginTop: 8, padding: '10px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
-                </>
-              ) : (
-                <>
-                  {/* 보안 업그레이드 안내 — 레거시 해시로 로그인 시 1회 표시 */}
-                  {newHashForUpdate && (
-                    <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 11.5 }}>
-                      <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 4 }}>🔐 보안 강화 안내 (1회)</div>
-                      <div style={{ color: '#78350f', marginBottom: 6 }}>아래 값을 복사해 코드의 <b>ADMIN_PW_HASH_V2</b>에 붙여넣은 뒤 재배포하세요.</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <code style={{ flex: 1, fontSize: 10, background: '#fff', padding: '4px 6px', borderRadius: 6, wordBreak: 'break-all', color: '#374151' }}>{newHashForUpdate}</code>
-                        <button onClick={() => { navigator.clipboard?.writeText(newHashForUpdate); showToast('복사됨'); }}
-                          style={{ padding: '4px 10px', background: '#92400e', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>복사</button>
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>🛠️ 관리자 통계</div>
-                    <button onClick={() => { setSheetStatus('loading'); fetchSheetRows(readToken).then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
-                      style={{ background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}`, borderRadius: 12, padding: '4px 11px', fontSize: 11, cursor: 'pointer' }}>↻ 새로고침</button>
+          adminAuthed ? (
+            /* ── 인증 후: 전체화면 ── */
+            <div style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
+              {/* 상단 헤더 */}
+              <div style={{ background: NAVY, padding: '14px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>🛠️ 관리자 통계</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button onClick={() => { setSheetStatus('loading'); fetchSheetRows(readToken).then(r => { setSheetRows(r); setSheetStatus('ok'); }).catch(() => setSheetStatus('err')); }}
+                    style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>↻ 새로고침</button>
+                  <button onClick={() => { setShowAdmin(false); setAdminTab('mgr'); }}
+                    style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>✕ 닫기</button>
+                </div>
+              </div>
+              {/* 탭 + 필터 */}
+              <div style={{ background: '#fff', padding: '10px 14px', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
+                {newHashForUpdate && (
+                  <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '8px 12px', marginBottom: 10, fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 700, color: '#92400e' }}>🔐 보안 강화 안내</span>
+                    <code style={{ flex: 1, fontSize: 10, color: '#374151', wordBreak: 'break-all' }}>{newHashForUpdate}</code>
+                    <button onClick={() => { navigator.clipboard?.writeText(newHashForUpdate); showToast('복사됨'); }}
+                      style={{ padding: '3px 8px', background: '#92400e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>복사</button>
                   </div>
-                  {/* 카드 분리: 담당자·지점 통계 / 영업 통계 */}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    {[['mgr', '📊 담당자·지점 통계'], ['sales', '📈 영업 통계']].map(([k, lbl]) => (
-                      <button key={k} onClick={() => setAdminTab(k)}
-                        style={{ flex: 1, padding: '11px 6px', borderRadius: 11, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${adminTab === k ? NAVY : '#e5e7eb'}`, background: adminTab === k ? NAVY : '#fff', color: adminTab === k ? '#fff' : '#64748b' }}>{lbl}</button>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  {[['mgr', '📊 담당자·지점'], ['sales', '📈 영업 통계']].map(([k, lbl]) => (
+                    <button key={k} onClick={() => setAdminTab(k)}
+                      style={{ flex: 1, padding: '10px 6px', borderRadius: 11, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${adminTab === k ? NAVY : '#e5e7eb'}`, background: adminTab === k ? NAVY : '#fff', color: adminTab === k ? '#fff' : '#64748b' }}>{lbl}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 140px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
+                    <option value="m">당월 ({adminStats.curYm})</option>
+                    <option value="t">누계</option>
+                  </select>
+                  <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
+                    {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
+                      <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <select value={adminPeriod} onChange={e => setAdminPeriod(e.target.value)} style={{ flex: '0 0 132px', padding: '8px 10px', border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, color: NAVY, background: '#fff' }}>
-                      <option value="m">당월 ({adminStats.curYm})</option>
-                      <option value="t">누계</option>
-                    </select>
-                    <div style={{ display: 'flex', flex: 1, border: `1.5px solid ${NAVY_BORDER}`, borderRadius: 9, overflow: 'hidden' }}>
-                      {[['c', '건수'], ['a', '금액']].map(([k, lbl]) => (
-                        <button key={k} onClick={() => setAdminMetric(k)} style={{ flex: 1, border: 'none', padding: '8px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adminMetric === k ? NAVY : '#fff', color: adminMetric === k ? '#fff' : '#64748b' }}>{lbl}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 10px' }}>
-                    {(adminTab === 'mgr' ? adminStats : salesStats).source} · {sheetStatus === 'loading' ? '불러오는 중…' : (adminTab === 'mgr' ? adminStats.total : salesStats.total) + '건'}{adminTab === 'mgr' ? ' · 금액 천원' : ' · 영업 등급'}{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
-                  </div>
-                  <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: adminTab === 'mgr' ? admDashHTML() : salesDashHTML() }} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                    <button onClick={() => { setShowAdmin(false); setAdminTab('mgr'); }} style={{ flex: 3, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
-                    <button onClick={() => { try { localStorage.removeItem('kpp_read_token'); } catch {} setAdminAuthed(false); setReadToken(''); setShowAdmin(false); setAdminTab('mgr'); }} style={{ flex: 1, padding: '12px', background: 'none', border: '1px solid #e5e7eb', borderRadius: 9, color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>로그아웃</button>
-                  </div>
-                </>
-              )}
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 7 }}>
+                  {(adminTab === 'mgr' ? adminStats : salesStats).source} · {sheetStatus === 'loading' ? '불러오는 중…' : (adminTab === 'mgr' ? adminStats.total : salesStats.total) + '건'}{adminTab === 'mgr' ? ' · 금액 천원' : ' · 영업 등급'}{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
+                </div>
+              </div>
+              {/* 콘텐츠 스크롤 영역 */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 24px' }} dangerouslySetInnerHTML={{ __html: adminTab === 'mgr' ? admDashHTML() : salesDashHTML() }} />
+              {/* 하단 로그아웃 */}
+              <div style={{ background: '#fff', borderTop: '1px solid #e5e7eb', padding: '10px 16px', flexShrink: 0 }}>
+                <button onClick={() => { try { localStorage.removeItem('kpp_read_token'); } catch {} setAdminAuthed(false); setReadToken(''); setShowAdmin(false); setAdminTab('mgr'); }}
+                  style={{ width: '100%', padding: '12px', background: 'none', border: '1px solid #fca5a5', borderRadius: 10, color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* ── 미인증: 기존 바텀시트 ── */
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+              onClick={() => setShowAdmin(false)}>
+              <div style={{ background: '#fff', borderRadius: '18px 18px 0 0', padding: '18px 16px 24px', maxWidth: 480, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}
+                onClick={e => e.stopPropagation()}>
+                <div style={{ width: 38, height: 4, background: '#d1d5db', borderRadius: 2, margin: '0 auto 14px' }} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 4 }}>🛠️ 관리자</div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 14 }}>비밀번호를 입력하세요</div>
+                <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') verifyAdmin(); }}
+                  placeholder="비밀번호" style={{ ...inp }} autoFocus />
+                <button onClick={verifyAdmin} style={{ width: '100%', marginTop: 14, padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: NAVY, color: '#fff', border: 'none' }}>확인</button>
+                <button onClick={() => { setShowAdmin(false); setShowLoadSheet(true); }} style={{ width: '100%', marginTop: 8, padding: '10px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
+              </div>
+            </div>
+          )
         )}
 
         {/* 뒤로가기 종료 확인 */}
