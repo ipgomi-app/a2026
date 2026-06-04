@@ -890,7 +890,12 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       const totDiffStr = totDiff !== null ? `${totDiff > 0 ? '+' : ''}${fmt(totDiff)}` : '—';
       const totDiffClr = totDiff === null ? '#fff' : totDiff < 0 ? '#fca5a5' : '#86efac';
       const totRow = `<tr style="font-weight:700;background:#0c447c;color:#fff"><td>합계</td><td class="r">${fmt(sE)}</td><td class="r" style="color:#fca5a5">${fmt(c1.sum)}</td><td class="r" style="color:${totDiffClr}">${totDiffStr}</td></tr>`;
-      return { label: c1.label, rows: dataRows + totRow };
+      const annDiff = totDiff !== null ? totDiff * 12 : null;
+      const annPct = annDiff !== null && sE > 0 ? Math.round(Math.abs(annDiff) / (sE * 12) * 100) : null;
+      const annClr = annDiff === null ? '#64748b' : annDiff < 0 ? '#dc2626' : '#15803d';
+      const annStr = annDiff !== null ? `${annDiff < 0 ? '▼' : '▲'} ${fmt(Math.abs(annDiff))}원${annPct !== null ? ` (${annPct}%)` : ''}` : '—';
+      const annRow = annDiff !== null ? `<tr style="font-weight:700;background:${annDiff < 0 ? '#fef2f2' : '#f0fdf4'}"><td>연간 예상 절감</td><td colspan="3" class="r" style="color:${annClr}">${annStr}</td></tr>` : '';
+      return { label: c1.label, rows: dataRows + totRow + annRow };
     })() : null;
     const scanSecRows = scanSecMeta ? scanSecMeta.rows : '';
     const nRoi = effRoiRows ? 1 : 0, nScan = scanSecRows ? 1 : 0;
