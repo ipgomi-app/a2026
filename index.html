@@ -1916,10 +1916,9 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                 {/* ── 구간 입력 공통 렌더 함수 ── */}
                 {(() => {
                   const r = manualRows;
-                  const vc = !r[0].dest ? 1 : !r[1].dest ? 2 : !r[2].rate ? 3 : !r[3].rate ? 4 : 5;
                   return [
-                    { label: '주요 구간', indices: [0, 1].filter(i => i < vc) },
-                    ...(vc > 2 ? [{ label: '나머지 구간(선택)', indices: [2, 3, 4].filter(i => i < vc) }] : []),
+                    { label: '주요 구간', indices: [0, ...(r[0].dest ? [1] : [])] },
+                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].rate ? [3] : []), ...(r[2].rate && r[3].rate ? [4] : [])] },
                   ];
                 })().map(({ label, indices }) => (
                   <div key={label} style={card}>
