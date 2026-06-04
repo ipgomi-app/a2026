@@ -999,7 +999,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
   const updateManualRow = (i, key, val) => {
     setManualRows(prev => prev.map((r, idx) => {
       if (idx !== i) return r;
-      if (key === 'region') return { ...r, region: val, dest: val ? REGIONS[val][0] : '' };
+      if (key === 'region') return { ...r, region: val, dest: val ? REGIONS[val][0] : '', rate: '', count: '', tonIdx: 3 };
       return { ...r, [key]: val };
     }));
   };
@@ -1338,8 +1338,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                 </button>
                 <button
                   onClick={() => { setShowSaveSheet(false); setShowModal(true); }}
-                  disabled={!kppRate}
-                  style={{ flex: 1, padding: '14px 6px', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: kppRate ? 'pointer' : 'not-allowed', background: kppRate ? NAVY_BG : '#f3f4f6', color: kppRate ? NAVY : '#9ca3af', border: `1px solid ${kppRate ? NAVY_BORDER : '#e5e7eb'}` }}
+                  disabled={tab === 'scan' ? !manualKPP : !kppRate}
+                  style={{ flex: 1, padding: '14px 6px', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: (tab === 'scan' ? !!manualKPP : !!kppRate) ? 'pointer' : 'not-allowed', background: (tab === 'scan' ? !!manualKPP : !!kppRate) ? NAVY_BG : '#f3f4f6', color: (tab === 'scan' ? !!manualKPP : !!kppRate) ? NAVY : '#9ca3af', border: `1px solid ${(tab === 'scan' ? !!manualKPP : !!kppRate) ? NAVY_BORDER : '#e5e7eb'}` }}
                 >
                   <div style={{ fontSize: 21, marginBottom: 4 }}>💬</div>
                   공유<div style={{ fontSize: 10, fontWeight: 400, marginTop: 2 }}>카톡·문자</div>
@@ -1972,7 +1972,11 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                             {/* 시·군 select — 지역 선택 후 & 시군 미선택 시 최상위 */}
                             {row.region && (
                               <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (row.region && !row.dest) ? 3 : 0 }}
-                                value={row.dest} onChange={e => updateManualRow(i, 'dest', e.target.value)}>
+                                value={row.dest} onChange={e => {
+                                  const nd = e.target.value;
+                                  if (nd && nd !== row.dest) setManualRows(prev => prev.map((r, idx) => idx !== i ? r : { ...r, dest: nd, rate: '', count: '', tonIdx: 3 }));
+                                  else updateManualRow(i, 'dest', nd);
+                                }}>
                                 <option value="">시·군 선택</option>
                                 {REGIONS[row.region].map(d => <option key={d}>{d}</option>)}
                               </select>
