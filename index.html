@@ -268,6 +268,8 @@ function KPPTransportApp() {
   const [scanDep, setScanDep] = useState(() => { try { return localStorage.getItem('kpp_scan_dep') || '부산'; } catch { return '부산'; } });
   const [scanTonIdx, setScanTonIdx] = useState(() => { try { const v = localStorage.getItem('kpp_scan_ton'); return v != null ? Number(v) : 3; } catch { return 3; } });
   const [manualRows, setManualRows] = useState(() => { try { const d = localStorage.getItem('kpp_manual_rows'); return d ? JSON.parse(d) : EMPTY_ROWS; } catch { return EMPTY_ROWS; } });
+  const [scanCompany, setScanCompany] = useState(() => { try { return localStorage.getItem('kpp_scan_company') || ''; } catch { return ''; } });
+  const [scanCode, setScanCode] = useState(() => { try { return localStorage.getItem('kpp_scan_code') || ''; } catch { return ''; } });
   const [openCargo, setOpenCargo] = useState(false);
   const [openCust, setOpenCust] = useState(false);
 
@@ -568,12 +570,16 @@ function KPPTransportApp() {
   useEffect(() => { try { localStorage.setItem('kpp_scan_dep', scanDep); } catch {} }, [scanDep]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_ton', String(scanTonIdx)); } catch {} }, [scanTonIdx]);
   useEffect(() => { try { localStorage.setItem('kpp_manual_rows', JSON.stringify(manualRows)); } catch {} }, [manualRows]);
+  useEffect(() => { try { localStorage.setItem('kpp_scan_company', scanCompany); } catch {} }, [scanCompany]);
+  useEffect(() => { try { localStorage.setItem('kpp_scan_code', scanCode); } catch {} }, [scanCode]);
   const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); setMargin(MARGIN_DEFAULT); };
   const resetScan = () => {
-    try { localStorage.removeItem('kpp_scan_dep'); localStorage.removeItem('kpp_scan_ton'); localStorage.removeItem('kpp_manual_rows'); } catch {}
+    try { localStorage.removeItem('kpp_scan_dep'); localStorage.removeItem('kpp_scan_ton'); localStorage.removeItem('kpp_manual_rows'); localStorage.removeItem('kpp_scan_company'); localStorage.removeItem('kpp_scan_code'); } catch {}
     setManualRows(EMPTY_ROWS);
     setScanDep('부산');
     setScanTonIdx(3);
+    setScanCompany('');
+    setScanCode('');
     setMargin(MARGIN_DEFAULT);
   };
   const generatePdf = () => {
@@ -945,7 +951,25 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
     if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
     then();
   };
-  const actionBar = (
+  const canScanOut = !!(manualKPP && scanCompany.trim() && scanCode.trim().length === 6);
+  const scanOutGuard = (then) => {
+    if (!scanCompany.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
+    if (scanCode.trim().length !== 6) { showToast('고객 코드 6자리를 입력해주세요'); return; }
+    if (!manualKPP) { showToast('운임 데이터를 먼저 입력해주세요'); return; }
+    then();
+  };
+  const doScanSave = () => {
+    const now = new Date(); const ym = now.getFullYear() * 100 + now.getMonth() + 1;
+    const list = readSaved();
+    const code = scanCode.trim().toUpperCase(); const company = scanCompany.trim();
+    const idx = list.findIndex(x => x.code === code && x.type === 'scan');
+    const rec = { id: idx !== -1 ? list[idx].id : Date.now(), company, code, type: 'scan', savedAt: now.toLocaleDateString('ko-KR'), ts: now.getTime(), ym, scan: { manualRows, scanDep, scanTonIdx } };
+    if (idx !== -1) list[idx] = rec; else list.push(rec);
+    writeSaved(list);
+    setSalesGrade(''); setCReason('단가문제'); setAccompany('');
+    setShowSaveSheet(true);
+  };
+  const makeActionBar = (canO, guardFn, saveFn) => (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <button
@@ -953,18 +977,20 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
           style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: NAVY, fontSize: 14, fontWeight: 500, cursor: 'pointer', textAlign: 'center' }}
         >← 입력 수정 / 초기화</button>
         <button
-          onClick={() => outGuard(() => setShowSaveSheet(true))}
-          style={{ background: canOut ? 'linear-gradient(135deg,#0c447c,#1565c0)' : '#cbd5e1', border: 'none', borderRadius: 24, color: canOut ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 700, cursor: canOut ? 'pointer' : 'default', padding: '13px 26px', whiteSpace: 'nowrap', boxShadow: canOut ? '0 3px 10px rgba(12,68,124,0.30)' : 'none' }}
+          onClick={() => guardFn(saveFn)}
+          style={{ background: canO ? 'linear-gradient(135deg,#0c447c,#1565c0)' : '#cbd5e1', border: 'none', borderRadius: 24, color: canO ? '#fff' : '#6b7280', fontSize: 14, fontWeight: 700, cursor: canO ? 'pointer' : 'default', padding: '13px 26px', whiteSpace: 'nowrap', boxShadow: canO ? '0 3px 10px rgba(12,68,124,0.30)' : 'none' }}
         >💾 저장</button>
       </div>
       <button
-        style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: canOut ? 'pointer' : 'default', textAlign: 'center', background: canOut ? 'linear-gradient(135deg,#1e40af,#2563eb)' : '#cbd5e1', color: canOut ? '#fff' : '#6b7280', border: 'none', boxShadow: canOut ? '0 3px 12px rgba(37,99,235,.35)' : 'none' }}
-        onClick={() => outGuard(() => setShowPdfModal(true))}
+        style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: canO ? 'pointer' : 'default', textAlign: 'center', background: canO ? 'linear-gradient(135deg,#1e40af,#2563eb)' : '#cbd5e1', color: canO ? '#fff' : '#6b7280', border: 'none', boxShadow: canO ? '0 3px 12px rgba(37,99,235,.35)' : 'none' }}
+        onClick={() => guardFn(() => setShowPdfModal(true))}
       >
         📄 제안서 PDF 저장 / 인쇄
       </button>
     </div>
   );
+  const actionBar = makeActionBar(canOut, outGuard, () => setShowSaveSheet(true));
+  const scanActionBar = makeActionBar(canScanOut, scanOutGuard, doScanSave);
 
   return (
     <div ref={formRef} style={{ maxWidth: 380, margin: '0 auto', paddingBottom: 12 }}>
@@ -1153,13 +1179,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               {openCust && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <div style={{ flex: 1.5 }}>
-                      <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                      <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
-                    </div>
                     <div style={{ flex: 1 }}>
                       <label style={lbl}>고객 코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수 · 6자리</span>)</label>
                       <input style={inp} placeholder="예: 123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
+                    </div>
+                    <div style={{ flex: 1.5 }}>
+                      <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
+                      <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -1791,45 +1817,27 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
           <div>
             {/* ── 직접 입력 폼 ── */}
             <>
-                {/* ── Origin / Vehicle 헤더 카드 ── */}
-                {(() => {
-                  const DEP_EN = {부산:'Busan',김해:'Gimhae',양산:'Yangsan',창원:'Changwon',진주:'Jinju',대구:'Daegu',구미:'Gumi',영천:'Yeongcheon',안동:'Andong',울산:'Ulsan',포항:'Pohang'};
-                  const rawTon = TONS[scanTonIdx];
-                  const tonNum = rawTon.replace(/[^0-9.]/g,'').trim();
-                  const tonSuffix = rawTon.includes('광폭') ? ' Wide' : rawTon.includes('플러스') ? '+' : rawTon.includes('장축') ? ' Long' : '';
-                  const tonEn = tonNum + ' Ton' + tonSuffix;
-                  const iconCircle = { width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
-                  return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: '#0c3460', borderRadius: 10, overflow: 'hidden', marginBottom: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.18)' }}>
-                      {/* ORIGIN */}
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRight: '1px solid rgba(255,255,255,0.12)' }}>
-                        <div style={iconCircle}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 7.5, fontWeight: 700, color: '#93c5fd', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 }}>Origin</div>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{scanDep}</div>
-                        </div>
-                        <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={scanDep} onChange={e => setScanDep(e.target.value)}>
-                          {DEPARTURES.map(d => <option key={d}>{d}</option>)}
-                        </select>
-                      </div>
-                      {/* VEHICLE */}
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px' }}>
-                        <div style={iconCircle}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 7.5, fontWeight: 700, color: '#93c5fd', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 }}>Vehicle</div>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{rawTon}</div>
-                        </div>
-                        <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={scanTonIdx} onChange={e => setScanTonIdx(Number(e.target.value))}>
-                          {TONS.map((t, i) => <option key={t} value={i}>{t}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  );
-                })()}
+                {/* ── Origin + 코드 + 고객사명 한줄 헤더 ── */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', marginBottom: 10 }}>
+                  {/* 출발지 — ORIGIN 박스 (소형) */}
+                  <div style={{ position: 'relative', background: '#0c3460', borderRadius: 10, padding: '6px 10px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontSize: 7, fontWeight: 700, color: '#93c5fd', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 1 }}>ORIGIN</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{scanDep}</div>
+                    <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={scanDep} onChange={e => setScanDep(e.target.value)}>
+                      {DEPARTURES.map(d => <option key={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  {/* 코드 */}
+                  <div style={{ flex: '0 0 90px' }}>
+                    <label style={{ ...lbl, whiteSpace: 'nowrap' }}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
+                    <input style={inp} placeholder="123456" inputMode="numeric" maxLength={6} value={scanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+                  </div>
+                  {/* 고객사명 */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={{ ...lbl, whiteSpace: 'nowrap' }}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
+                    <input style={inp} placeholder="(주)민승" value={scanCompany} onChange={e => setScanCompany(e.target.value)} />
+                  </div>
+                </div>
 
                 {/* ── 구간 입력 공통 렌더 함수 ── */}
                 {[
@@ -2076,7 +2084,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               })()}
               </div>
             )}
-            {actionBar}
+            {scanActionBar}
           </div>
         )}
       </div>
