@@ -1950,10 +1950,10 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         const v2 = row[col2.key]; const v3 = row[col3.key];
                         return (
                           <div key={i} style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 8px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.02)', alignItems: 'center' }}>
-                            {/* 순번 + 지역 */}
+                            {/* 지역 + 주요 배지 */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span style={{ fontSize: 10, color: '#9ca3af', width: 12, flexShrink: 0 }}>{i + 1}</span>
                               <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</span>
+                              {row.isMain && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 4px', flexShrink: 0 }}>주요</span>}
                             </div>
                             {/* 업체현단가 */}
                             <div style={{ fontSize: 11, textAlign: 'right', color: row.existRate ? '#374151' : '#ccc' }}>{row.existRate ? fmt(row.existRate) : '—'}</div>
