@@ -1932,7 +1932,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                     {indices.map(i => {
                       const row = manualRows[i];
                       const compactSel = { padding: '7px 0', fontSize: 11, appearance: 'none', WebkitAppearance: 'none', textAlign: 'center' };
-                      const compactInp = { padding: '7px 5px', fontSize: 13, height: 34, textAlign: 'right' };
+                      const compactInp = { padding: '7px 5px', fontSize: 13, height: 34, textAlign: 'center' };
                       return (
                         <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 1fr 52px 46px 1fr', alignItems: 'center', gap: 5 }}>
                           <div style={{ fontSize: 12, color: '#9ca3af' }}>#{i + 1}</div>
