@@ -1938,7 +1938,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 const col2 = { label: yFirst ? 'Y' : 'B', key: yFirst ? 'rateYt' : 'rateBg', sum: yFirst ? sumY : sumB };
                 const col3 = { label: yFirst ? 'B' : 'Y', key: yFirst ? 'rateBg' : 'rateYt', sum: yFirst ? sumB : sumY };
                 const totalPct = sumExist > 0 && col2.sum > 0 ? Math.round((sumExist - col2.sum) / sumExist * 100) : null;
-                const GCOLS = '1.1fr 1fr 1fr 0.7fr 0.95fr'; // 지역|업체|col2|차이|col3
+                const GCOLS = '1fr 0.85fr 0.85fr 0.65fr 0.85fr'; // 지역|현단가|col2|차이|col3
                 return (
                   <div style={{ marginTop: 14 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
@@ -1948,8 +1948,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden' }}>
                       {/* 헤더 */}
                       <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 10px', background: NAVY }}>
-                        {['지역', '업체현단가', col2.label, '차이', col3.label].map((h, i) => (
-                          <div key={h} style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+                        {['지역', '현단가', `1순위(${col2.label})`, '차이', `2순위(${col3.label})`].map((h, i) => (
+                          <div key={h} style={{ fontSize: 10, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
                         ))}
                       </div>
                       {/* 데이터 행 */}
@@ -1994,8 +1994,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                             <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 20, color: '#dc2626', background: '#fee2e2' }}>▼ {totalPct}%</span>
                           ) : <span style={{ color: '#ccc' }}>—</span>}
                         </div>
-                        {/* col3: 괄호 숫자만 */}
-                        <div style={{ fontSize: 11, textAlign: 'right', fontWeight: 600, color: '#64748b' }}>({fmtK(col3.sum)})</div>
+                        {/* col3: 합계 금액 */}
+                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{fmtK(col3.sum)}</div>
                       </div>
                     </div>
                   </div>
