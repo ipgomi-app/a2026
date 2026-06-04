@@ -1836,14 +1836,16 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                             {row.region && REGIONS[row.region].map(d => <option key={d}>{d}</option>)}
                           </select>
                           <input
-                            style={{ ...inp, ...compactInp }}
+                            style={{ ...inp, ...compactInp, background: !row.dest ? '#f3f4f6' : '#fff', color: !row.dest ? '#9ca3af' : '#111' }}
                             type="text" inputMode="numeric" placeholder="단가"
+                            disabled={!row.dest}
                             value={row.rate ? Number(row.rate).toLocaleString() : ''}
                             onChange={e => updateManualRow(i, 'rate', e.target.value.replace(/[^\d]/g, ''))}
                           />
                           <input
-                            style={{ ...inp, ...compactInp }}
+                            style={{ ...inp, ...compactInp, background: !row.rate ? '#f3f4f6' : '#fff', color: !row.rate ? '#9ca3af' : '#111' }}
                             type="text" inputMode="numeric" placeholder="댓수"
+                            disabled={!row.rate}
                             value={row.count || ''}
                             onChange={e => updateManualRow(i, 'count', e.target.value.replace(/[^\d]/g, ''))}
                           />
