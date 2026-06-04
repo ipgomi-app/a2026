@@ -270,6 +270,7 @@ function KPPTransportApp() {
   };
   const [showRefresh, setShowRefresh] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [rowResetPending, setRowResetPending] = useState(null); // { idx, newRegion }
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [repName, setRepName] = useState(() => { try { return localStorage.getItem('kpp_rep_name') || ''; } catch { return ''; } });
   const [repPhone, setRepPhone] = useState(() => { try { return localStorage.getItem('kpp_rep_phone') || ''; } catch { return ''; } });
@@ -1545,6 +1546,29 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
           </div>
         )}
 
+        {/* 행 초기화 확인 */}
+        {rowResetPending && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setRowResetPending(null)}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px 18px', maxWidth: 300, width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 22, marginBottom: 8 }}>↺</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 6 }}>초기화할까요?</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 18 }}>#{rowResetPending.idx + 1}행의 모든 입력값이 초기화됩니다.</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setRowResetPending(null)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', background: '#f3f4f6', color: '#374151', border: 'none' }}>취소</button>
+                <button onClick={() => {
+                  const { idx, newRegion } = rowResetPending;
+                  setManualRows(prev => prev.map((r, i) => i !== idx ? r : { region: newRegion, dest: '', rate: '', count: '', tonIdx: 3 }));
+                  setRowResetPending(null);
+                }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: '#0c447c', color: '#fff', border: 'none' }}>확인</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 초기화 확인 */}
         {showReset && (
           <div
@@ -1940,7 +1964,11 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                             </div>
                             {/* 지역 select — 미선택 or 완료(재선택용) 시 최상위 */}
                             <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (!row.region || row.dest) ? 2 : 0 }}
-                              value={row.region} onChange={e => { updateManualRow(i, 'region', e.target.value); updateManualRow(i, 'dest', ''); }}>
+                              value={row.region} onChange={e => {
+                                const newReg = e.target.value;
+                                if (row.dest && (row.rate || row.count)) { setRowResetPending({ idx: i, newRegion: newReg }); }
+                                else { updateManualRow(i, 'region', newReg); updateManualRow(i, 'dest', ''); }
+                              }}>
                               <option value="">지역 선택</option>
                               {Object.keys(REGIONS).map(r => <option key={r}>{r}</option>)}
                             </select>
