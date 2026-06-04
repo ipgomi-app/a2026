@@ -1930,8 +1930,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                 const sumExist = manualKPP.rows.reduce((s, r) => s + (r.existRate || 0), 0);
                 // 합계 기준으로 저렴한 운송사를 2번째 컬럼에
                 const yFirst = (sumY > 0 && sumB > 0) ? sumY <= sumB : sumY > 0;
-                const col2 = { label: yFirst ? 'Y (YT)' : 'B (바로고)', key: yFirst ? 'rateYt' : 'rateBg', sum: yFirst ? sumY : sumB };
-                const col3 = { label: yFirst ? 'B (바로고)' : 'Y (YT)', key: yFirst ? 'rateBg' : 'rateYt', sum: yFirst ? sumB : sumY };
+                const col2 = { label: yFirst ? 'Y' : 'B', key: yFirst ? 'rateYt' : 'rateBg', sum: yFirst ? sumY : sumB };
+                const col3 = { label: yFirst ? 'B' : 'Y', key: yFirst ? 'rateBg' : 'rateYt', sum: yFirst ? sumB : sumY };
                 const sumMain = manualKPP.rows.filter(r => r.isMain).reduce((s, r) => s + (r.kppRate || 0), 0);
                 const GCOLS = '1.4fr 0.85fr 0.85fr 0.85fr 0.85fr';
                 return (
@@ -1940,8 +1940,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden' }}>
                       {/* 헤더 */}
                       <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 8px', background: NAVY }}>
-                        {['지역', '업체현단가', '주요단가', col2.label, col3.label].map((h, i) => (
-                          <div key={h} style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+                        {['지역', '업체현단가', null, col2.label, col3.label].map((h, i) => (
+                          i === 2
+                            ? <div key="주요구간" style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600 }}>주요구간</div>
+                                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>Y · B</div>
+                              </div>
+                            : <div key={h} style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
                         ))}
                       </div>
                       {/* 데이터 행 */}
