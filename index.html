@@ -1881,13 +1881,10 @@ function LoginGate() {
   const [err, setErr] = useState('');
   useEffect(() => {
     try {
-      // 로그인 유지: sessionStorage 캐시(탭 닫으면 소멸) + 버전 일치 시 자동 진입
-      const cached = sessionStorage.getItem('kpp_rates');
-      if (cached && sessionStorage.getItem('kpp_rates_ver') === ENC_RATES.slice(0, 24)) {
+      // 로그인 유지: localStorage 캐시 + 암호문 버전 일치 시 자동 진입(재배포로 단가 바뀌면 재로그인)
+      const cached = localStorage.getItem('kpp_rates');
+      if (cached && localStorage.getItem('kpp_rates_ver') === ENC_RATES.slice(0, 24)) {
         applyRates(JSON.parse(cached)); setUnlocked(true);
-      } else {
-        // 구버전 localStorage 캐시 정리
-        try { localStorage.removeItem('kpp_rates'); localStorage.removeItem('kpp_rates_ver'); } catch {}
       }
     } catch {}
   }, []);
@@ -1900,8 +1897,8 @@ function LoginGate() {
       const obj = await decryptRates(pw);
       applyRates(obj);
       try {
-        sessionStorage.setItem('kpp_rates', JSON.stringify(obj));
-        sessionStorage.setItem('kpp_rates_ver', ENC_RATES.slice(0, 24));
+        localStorage.setItem('kpp_rates', JSON.stringify(obj));
+        localStorage.setItem('kpp_rates_ver', ENC_RATES.slice(0, 24));
         localStorage.setItem('kpp_mgr_name', nm);
       } catch {}
       setUnlocked(true);
