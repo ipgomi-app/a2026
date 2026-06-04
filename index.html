@@ -261,11 +261,11 @@ function KPPTransportApp() {
   const [scanDep, setScanDep] = useState('부산');
   const [scanTonIdx, setScanTonIdx] = useState(3);
   const [manualRows, setManualRows] = useState([
-    { region: '', dest: '', rate: '' },
-    { region: '', dest: '', rate: '' },
-    { region: '', dest: '', rate: '' },
-    { region: '', dest: '', rate: '' },
-    { region: '', dest: '', rate: '' },
+    { region: '', dest: '', rate: '', count: '' },
+    { region: '', dest: '', rate: '', count: '' },
+    { region: '', dest: '', rate: '', count: '' },
+    { region: '', dest: '', rate: '', count: '' },
+    { region: '', dest: '', rate: '', count: '' },
   ]);
   const [openCargo, setOpenCargo] = useState(false);
   const [openCust, setOpenCust] = useState(false);
@@ -566,11 +566,11 @@ function KPPTransportApp() {
   const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); setMargin(MARGIN_DEFAULT); };
   const resetScan = () => {
     setManualRows([
-      { region: '', dest: '', rate: '' },
-      { region: '', dest: '', rate: '' },
-      { region: '', dest: '', rate: '' },
-      { region: '', dest: '', rate: '' },
-      { region: '', dest: '', rate: '' },
+      { region: '', dest: '', rate: '', count: '' },
+      { region: '', dest: '', rate: '', count: '' },
+      { region: '', dest: '', rate: '', count: '' },
+      { region: '', dest: '', rate: '', count: '' },
+      { region: '', dest: '', rate: '', count: '' },
     ]);
     setScanDep('부산');
     setScanTonIdx(3);
@@ -645,7 +645,9 @@ function KPPTransportApp() {
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
         const rateYt = calcRate(scanDep, r.dest, scanTonIdx, margin);
         const rateBg = calcBarogo(scanDep, r.dest, scanTonIdx, margin);
-        return { 지역: r.dest, 톤: TONS[scanTonIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg };
+        const count = Number(r.count) || 0; // 월 댓수
+        const existMonthly = existRate && count ? existRate * count : null;
+        return { 지역: r.dest, 톤: TONS[scanTonIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg, count, existMonthly };
       });
     return rows.length > 0 ? { type: 'table', rows, dep: scanDep, 업체명: '직접 입력' } : null;
   }, [manualRows, scanDep, scanTonIdx, margin]);
@@ -1804,39 +1806,56 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                   </div>
                 </div>
 
-                <div style={card}>
-                  <div style={sectionTitle}>도착지별 현재 단가 (최대 5건)</div>
-                  {manualRows.map((row, i) => {
-                    const compactSel = { padding: '8px 7px', fontSize: 13 };
-                    const compactInp = { padding: '8px 8px', fontSize: 13, height: 36, textAlign: 'right' };
-                    return (
-                      <div key={i} style={{ marginBottom: i < manualRows.length - 1 ? 9 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ fontSize: 11, color: '#9ca3af', width: 16, flexShrink: 0 }}>#{i + 1}</div>
-                        <select className="selChip" style={{ ...compactSel, flex: 1 }} value={row.region} onChange={e => updateManualRow(i, 'region', e.target.value)}>
-                          <option value="">지역</option>
-                          {Object.keys(REGIONS).map(r => <option key={r}>{r}</option>)}
-                        </select>
-                        <select className="selChip" style={{ ...compactSel, flex: 1 }} value={row.dest} onChange={e => updateManualRow(i, 'dest', e.target.value)} disabled={!row.region}>
-                          <option value="">시·군</option>
-                          {row.region && REGIONS[row.region].map(d => <option key={d}>{d}</option>)}
-                        </select>
-                        <input
-                          style={{ ...inp, ...compactInp, flex: 1.2 }}
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="현재단가"
-                          value={row.rate ? Number(row.rate).toLocaleString() : ''}
-                          onChange={e => updateManualRow(i, 'rate', e.target.value.replace(/[^\d]/g, ''))}
-                        />
-                      </div>
-                    );
-                  })}
-                  {!manualKPP && (
-                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 10, background: '#f9fafb', padding: '8px', borderRadius: 6 }}>
-                      도착지에 현재 단가를 입력하면 KPP 단가와 자동 비교됩니다.
+                {/* ── 구간 입력 공통 렌더 함수 ── */}
+                {[
+                  { label: '주요 구간', indices: [0, 1] },
+                  { label: '나머지 구간', indices: [2, 3, 4] },
+                ].map(({ label, indices }) => (
+                  <div key={label} style={card}>
+                    <div style={sectionTitle}>{label}</div>
+                    {/* 헤더 라벨 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 1fr 0.7fr', gap: 6, marginBottom: 5, paddingLeft: 2 }}>
+                      {['', '지역', '시·군', '현재단가', '월댓수'].map((h, hi) => (
+                        <div key={hi} style={{ fontSize: 10, color: '#9ca3af', textAlign: hi >= 3 ? 'right' : 'left' }}>{h}</div>
+                      ))}
                     </div>
-                  )}
-                </div>
+                    {indices.map(i => {
+                      const row = manualRows[i];
+                      const compactSel = { padding: '8px 5px', fontSize: 12 };
+                      const compactInp = { padding: '8px 6px', fontSize: 12, height: 36, textAlign: 'right' };
+                      return (
+                        <div key={i} style={{ marginBottom: i < indices[indices.length - 1] ? 7 : 0, display: 'grid', gridTemplateColumns: '16px 1fr 1fr 1fr 0.7fr', alignItems: 'center', gap: 6 }}>
+                          <div style={{ fontSize: 10, color: '#9ca3af' }}>#{i + 1}</div>
+                          <select className="selChip" style={{ ...compactSel }} value={row.region} onChange={e => updateManualRow(i, 'region', e.target.value)}>
+                            <option value="">지역</option>
+                            {Object.keys(REGIONS).map(r => <option key={r}>{r}</option>)}
+                          </select>
+                          <select className="selChip" style={{ ...compactSel }} value={row.dest} onChange={e => updateManualRow(i, 'dest', e.target.value)} disabled={!row.region}>
+                            <option value="">시·군</option>
+                            {row.region && REGIONS[row.region].map(d => <option key={d}>{d}</option>)}
+                          </select>
+                          <input
+                            style={{ ...inp, ...compactInp }}
+                            type="text" inputMode="numeric" placeholder="단가"
+                            value={row.rate ? Number(row.rate).toLocaleString() : ''}
+                            onChange={e => updateManualRow(i, 'rate', e.target.value.replace(/[^\d]/g, ''))}
+                          />
+                          <input
+                            style={{ ...inp, ...compactInp }}
+                            type="text" inputMode="numeric" placeholder="댓수"
+                            value={row.count || ''}
+                            onChange={e => updateManualRow(i, 'count', e.target.value.replace(/[^\d]/g, ''))}
+                          />
+                        </div>
+                      );
+                    })}
+                    {!manualKPP && indices[0] === 0 && (
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 10, background: '#f9fafb', padding: '8px', borderRadius: 6 }}>
+                        도착지·단가를 입력하면 KPP 단가와 자동 비교됩니다.
+                      </div>
+                    )}
+                  </div>
+                ))}
               </>
 
             {/* ── 직접 입력 비교 결과 ── */}
