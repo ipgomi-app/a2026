@@ -1929,29 +1929,29 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
 
               {/* 운송사별 구간 단가 Y / B */}
               {(() => {
-                // 월금액 헬퍼: 댓수 있으면 ×댓수, 없으면 단가 그대로
+                // 월금액 헬퍼
                 const mAmt = (rate, cnt) => rate ? (cnt > 0 ? rate * cnt : rate) : 0;
+                // 천원 단위 포맷
+                const fmtK = v => v ? Math.round(v / 1000).toLocaleString() : '—';
                 const sumY = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateYt, r.count), 0);
                 const sumB = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateBg, r.count), 0);
                 const sumExist = manualKPP.rows.reduce((s, r) => s + mAmt(r.existRate, r.count), 0);
-                // 합계 기준으로 저렴한 운송사를 2번째 컬럼에
                 const yFirst = (sumY > 0 && sumB > 0) ? sumY <= sumB : sumY > 0;
                 const col2 = { label: yFirst ? 'Y' : 'B', key: yFirst ? 'rateYt' : 'rateBg', sum: yFirst ? sumY : sumB };
                 const col3 = { label: yFirst ? 'B' : 'Y', key: yFirst ? 'rateBg' : 'rateYt', sum: yFirst ? sumB : sumY };
-                const sumMain = manualKPP.rows.filter(r => r.isMain).reduce((s, r) => s + mAmt(r.kppRate, r.count), 0);
-                const GCOLS = '1fr 0.85fr 0.9fr 0.8fr 0.75fr 0.8fr'; // 지역|업체|주요|col2|차이|col3
+                const totalPct = sumExist > 0 && col2.sum > 0 ? Math.round((sumExist - col2.sum) / sumExist * 100) : null;
+                const GCOLS = '1.1fr 1fr 1fr 0.7fr 0.95fr'; // 지역|업체|col2|차이|col3
                 return (
                   <div style={{ marginTop: 14 }}>
-                    <div style={sectionTitle}>운송사별 구간 단가</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                      <div style={sectionTitle}>운송사별 구간 단가</div>
+                      <div style={{ fontSize: 10, color: '#9ca3af' }}>단위: 천원</div>
+                    </div>
                     <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden' }}>
                       {/* 헤더 */}
-                      <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 8px', background: NAVY }}>
-                        {['지역', '업체현단가', null, col2.label, '차이', col3.label].map((h, i) => (
-                          i === 2
-                            ? <div key="주요구간" style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600 }}>주요구간</div>
-                              </div>
-                            : <div key={h || i} style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 10px', background: NAVY }}>
+                        {['지역', '업체현단가', col2.label, '차이', col3.label].map((h, i) => (
+                          <div key={h} style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600, textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
                         ))}
                       </div>
                       {/* 데이터 행 */}
@@ -1959,31 +1959,20 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         const cnt = row.count || 0;
                         const v2raw = row[col2.key]; const v3raw = row[col3.key];
                         const existAmt = mAmt(row.existRate, cnt);
-                        const mainAmt = row.isMain ? mAmt(row.kppRate, cnt) : 0;
                         const v2Amt = mAmt(v2raw, cnt);
                         const v3Amt = mAmt(v3raw, cnt);
-                        const byBg2 = col2.label === 'B' ? NAVY : '#d97706';
                         return (
-                          <div key={i} style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 8px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.02)', alignItems: 'center' }}>
-                            {/* 지역 + 주요 배지 */}
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '8px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.02)', alignItems: 'center' }}>
+                            {/* 지역 */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                               <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</span>
                               {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주요</span>}
                             </div>
-                            {/* 업체현단가 (×댓수) */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: existAmt ? '#374151' : '#ccc' }}>{existAmt ? fmt(existAmt) : '—'}</div>
-                            {/* 주요구간: isMain + 배지 */}
-                            <div style={{ textAlign: 'right' }}>
-                              {row.isMain && row.kppRate ? (
-                                <>
-                                  <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>{fmt(mainAmt)}</div>
-                                  {carrierBY(row.carrier) && <span style={{ display: 'inline-block', fontSize: 8, fontWeight: 700, color: '#fff', background: NAVY, borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>{carrierBY(row.carrier)}</span>}
-                                </>
-                              ) : <span style={{ color: '#e5e7eb' }}>—</span>}
-                            </div>
-                            {/* col2 저렴 (×댓수) */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: v2Amt ? '#dc2626' : '#ccc', fontWeight: v2Amt ? 700 : 400 }}>{v2Amt ? fmt(v2Amt) : '—'}</div>
-                            {/* 차이% — col2 바로 우측 */}
+                            {/* 업체현단가 (천원) */}
+                            <div style={{ fontSize: 11, textAlign: 'right', color: existAmt ? '#374151' : '#ccc' }}>{fmtK(existAmt)}</div>
+                            {/* col2 저렴 (천원) */}
+                            <div style={{ fontSize: 11, textAlign: 'right', color: v2Amt ? '#dc2626' : '#ccc', fontWeight: v2Amt ? 700 : 400 }}>{fmtK(v2Amt)}</div>
+                            {/* 차이% */}
                             <div style={{ textAlign: 'right' }}>
                               {row.save !== null ? (
                                 <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 4px', borderRadius: 20, color: row.save > 0 ? '#dc2626' : '#16a34a', background: row.save > 0 ? '#fee2e2' : '#dcfce7' }}>
@@ -1991,19 +1980,25 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                                 </span>
                               ) : <span style={{ fontSize: 10, color: '#ccc' }}>—</span>}
                             </div>
-                            {/* col3 비쌈 (×댓수) */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: v3Amt ? NAVY : '#ccc', fontWeight: v3Amt ? 600 : 400 }}>{v3Amt ? fmt(v3Amt) : '—'}</div>
+                            {/* col3 비쌈 (천원) */}
+                            <div style={{ fontSize: 11, textAlign: 'right', color: v3Amt ? NAVY : '#ccc', fontWeight: v3Amt ? 600 : 400 }}>{fmtK(v3Amt)}</div>
                           </div>
                         );
                       })}
                       {/* 합계 행 */}
-                      <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '9px 8px', background: '#f1f5f9', borderTop: '1.5px solid #e2e8f0' }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
-                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumExist ? '#374151' : '#ccc' }}>{sumExist ? fmt(sumExist) : '—'}</div>
-                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumMain ? '#374151' : '#ccc' }}>{sumMain ? fmt(sumMain) : '—'}</div>
-                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{col2.sum ? fmt(col2.sum) : '—'}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '9px 10px', background: '#f1f5f9', borderTop: '1.5px solid #e2e8f0', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>합계</div>
+                          {totalPct !== null && (
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginTop: 2 }}>▼ {totalPct}%</div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumExist ? '#374151' : '#ccc' }}>{fmtK(sumExist)}</div>
+                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{fmtK(col2.sum)}</div>
                         <div style={{ fontSize: 11, textAlign: 'right', color: '#9ca3af' }}>—</div>
-                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{col3.sum ? fmt(col3.sum) : '—'}</div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>({fmtK(col3.sum)}천원)</div>
+                        </div>
                       </div>
                     </div>
                   </div>
