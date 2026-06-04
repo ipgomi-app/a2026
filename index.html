@@ -207,7 +207,7 @@ function KPPTransportApp() {
   const [selCarrier, setSelCarrier] = useState(null); // 메인 결과: 선택된 운송사('YT'|'바로고'), null=미선택(둘 다 표시)
   const [mgrName, setMgrName] = useState(() => { try { return localStorage.getItem('kpp_mgr_name') || ''; } catch { return ''; } });
   const [showAdmin, setShowAdmin] = useState(false);
-  const [adminAuthed, setAdminAuthed] = useState(false);
+  const [adminAuthed, setAdminAuthed] = useState(() => { try { return !!localStorage.getItem('kpp_read_token'); } catch { return false; } });
   const [adminPw, setAdminPw] = useState('');
   const [adminPeriod, setAdminPeriod] = useState('m'); // m=당월, t=누계
   const [adminMetric, setAdminMetric] = useState('c'); // c=건수, a=금액
@@ -223,7 +223,7 @@ function KPPTransportApp() {
   const [showCodeCheck, setShowCodeCheck] = useState(false); // 업체명 일치·코드 불일치 재확인
   const [codeCheckInfo, setCodeCheckInfo] = useState({ company: '', existCompany: '', existCode: '', inputCode: '' });
   const [checkingSheet, setCheckingSheet] = useState(false); // 저장 시 전사(시트) 유사업체 조회 중
-  const [readToken, setReadToken] = useState(() => { try { return sessionStorage.getItem('kpp_read_token') || ''; } catch { return ''; } }); // 관리자 인증 후 파생 — 탭 닫기 전까지 유지
+  const [readToken, setReadToken] = useState(() => { try { return localStorage.getItem('kpp_read_token') || ''; } catch { return ''; } }); // 관리자 인증 후 파생 — 영구 유지(localStorage)
   const [newHashForUpdate, setNewHashForUpdate] = useState(''); // 해시 강화용 — 관리자 패널에 표시
   const [loadSearch, setLoadSearch] = useState('');
   const [savedList, setSavedList] = useState([]);
@@ -375,7 +375,7 @@ function KPPTransportApp() {
       const rtBuf = await crypto.subtle.digest('SHA-256', enc.encode(adminPw + ':kpp-read-2026'));
       const rt = toHex(rtBuf).slice(0, 32);
       setReadToken(rt);
-      try { sessionStorage.setItem('kpp_read_token', rt); } catch {}
+      try { localStorage.setItem('kpp_read_token', rt); } catch {}
       // 4) legacy로 통과 시 → salted 해시 표시(코드 업데이트 안내용)
       if (legacyOk && !saltedOk) setNewHashForUpdate(saltedHex);
       setAdminAuthed(true); setAdminPw('');
@@ -1243,7 +1243,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
               <div style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 14 }}>메뉴를 선택하세요</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  onClick={() => { setShowLoadSheet(false); setAdminAuthed(false); setAdminPw(''); setShowAdmin(true); }}
+                  onClick={() => { setShowLoadSheet(false); setAdminPw(''); setShowAdmin(true); }}
                   style={{ flex: 1, padding: '14px 6px', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: NAVY_BG, color: NAVY, border: `1px solid ${NAVY_BORDER}` }}
                 >
                   <div style={{ fontSize: 21, marginBottom: 4 }}>🛠️</div>
@@ -1384,7 +1384,10 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     {(adminTab === 'mgr' ? adminStats : salesStats).source} · {sheetStatus === 'loading' ? '불러오는 중…' : (adminTab === 'mgr' ? adminStats.total : salesStats.total) + '건'}{adminTab === 'mgr' ? ' · 금액 천원' : ' · 영업 등급'}{sheetStatus === 'err' ? ' · ⚠ 시트 연결 실패(로컬)' : ''}
                   </div>
                   <div style={{ overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: adminTab === 'mgr' ? admDashHTML() : salesDashHTML() }} />
-                  <button onClick={() => { setShowAdmin(false); setAdminAuthed(false); setAdminTab('mgr'); }} style={{ width: '100%', marginTop: 14, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    <button onClick={() => { setShowAdmin(false); setAdminTab('mgr'); }} style={{ flex: 3, padding: '12px', background: 'none', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer' }}>닫기</button>
+                    <button onClick={() => { try { localStorage.removeItem('kpp_read_token'); } catch {} setAdminAuthed(false); setReadToken(''); setShowAdmin(false); setAdminTab('mgr'); }} style={{ flex: 1, padding: '12px', background: 'none', border: '1px solid #e5e7eb', borderRadius: 9, color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>로그아웃</button>
+                  </div>
                 </>
               )}
             </div>
