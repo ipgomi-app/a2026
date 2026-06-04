@@ -13,7 +13,7 @@
 <title>KPP 운송 견적</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: #f3f4f6; overscroll-behavior-y: contain; }
+  html, body { margin: 0; padding: 0; background: #f3f4f6; overscroll-behavior: none; }
   body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
   #root { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fff; }
   input, select, textarea, button { font-family: inherit; font-size: 16px; -webkit-appearance: none; appearance: none; }
@@ -56,6 +56,23 @@
   .kd-tbl tr.sub td{background:#eaf2fb;font-weight:800;color:#0c447c}
   .kd-tbl tr.tot td{background:#0c447c;color:#fff;font-weight:800}.kd-tbl tr.tot td b{color:#fff}.kd-tbl tr.tot td .kd-amt{color:#dbe7f7}
 </style>
+<script>
+  var _ptrStartY = 0;
+  document.addEventListener('touchstart', function(e) { _ptrStartY = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) return;
+    var el = e.target;
+    while (el && el !== document.documentElement) {
+      if (el.scrollHeight > el.clientHeight) {
+        if (el.scrollTop > 0) return;
+        if (e.touches[0].clientY <= _ptrStartY) return;
+        e.preventDefault(); return;
+      }
+      el = el.parentElement;
+    }
+    if (e.touches[0].clientY > _ptrStartY) e.preventDefault();
+  }, { passive: false });
+</script>
 </head>
 <body>
 <div id="root"></div>
