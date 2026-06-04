@@ -1918,7 +1918,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                   const r = manualRows;
                   return [
                     { label: '주요 구간', indices: [0, ...(r[0].dest ? [1] : [])] },
-                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].rate ? [3] : []), ...(r[2].rate && r[3].rate ? [4] : [])] },
+                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest ? [3] : []), ...(r[2].dest && r[3].dest ? [4] : [])] },
                   ];
                 })().map(({ label, indices }) => (
                   <div key={label} style={card}>
@@ -1945,7 +1945,19 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                             <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (!row.region || row.dest) ? 2 : 0 }}
                               value={row.region} onChange={e => {
                                 const v = e.target.value;
-                                if (v === '__RESET__') { setManualRows(prev => prev.map((r, idx) => idx !== i ? r : { region: '', dest: '', rate: '', count: '', tonIdx: 3 })); return; }
+                                if (v === '__RESET__') {
+                                  setManualRows(prev => {
+                                    const next = prev.map(r => ({...r}));
+                                    if (i === 3 && next[4].dest) {
+                                      next[3] = {...next[4]};
+                                      next[4] = { region: '', dest: '', rate: '', count: '', tonIdx: 3 };
+                                    } else {
+                                      next[i] = { region: '', dest: '', rate: '', count: '', tonIdx: 3 };
+                                    }
+                                    return next;
+                                  });
+                                  return;
+                                }
                                 updateManualRow(i, 'region', v); updateManualRow(i, 'dest', '');
                               }}>
                               <option value="">지역 선택</option>
