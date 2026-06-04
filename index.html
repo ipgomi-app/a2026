@@ -1872,32 +1872,35 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                     ▼ KPP가 저렴 &nbsp;|&nbsp; ▲ KPP가 비쌈
                   </div>
                   <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden', marginBottom: 4 }}>
-                  {/* 헤더: 4열, 간격 타이트 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.9fr 1fr 0.9fr', gap: 4, padding: '8px 10px', background: NAVY }}>
+                  {/* 헤더: 4열 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.85fr', padding: '8px 10px', background: NAVY }}>
                     {['지역', '현재단가', 'KPP최저', '차이'].map(h => (
                       <div key={h} style={{ fontSize: 10, color: 'rgba(255,255,255,0.95)', fontWeight: 600, letterSpacing: 0.3, textAlign: h !== '지역' ? 'right' : 'left' }}>{h}</div>
                     ))}
                   </div>
-                  {/* 2. 한줄 표기 */}
+                  {/* 한줄 표기 */}
                   {manualKPP.rows.map((row, i) => {
                     const isDown = row.save !== null && row.save > 0;
                     const rowBg = i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)';
                     const byLabel = carrierBY(row.carrier);
-                    const byBg = byLabel === 'B' ? NAVY : '#d97706'; // B=파랑, Y=주황
+                    const byBg = byLabel === 'B' ? NAVY : '#d97706';
+                    const cnt = row.count || 0;
+                    const dispRate = row.existRate ? (cnt > 0 ? fmt(row.existRate * cnt) : fmt(row.existRate)) : '—';
+                    const dispKpp = row.kppRate ? (cnt > 0 ? fmt(row.kppRate * cnt) : fmt(row.kppRate)) : '—';
                     return (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.9fr 1fr 0.9fr', gap: 4, padding: '9px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: rowBg, alignItems: 'center' }}>
-                        {/* 지역 한줄: 지역명 주요배지 톤수 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.85fr', padding: '9px 10px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: rowBg, alignItems: 'center' }}>
+                        {/* 지역 한줄 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
                           <span style={{ fontSize: 11, fontWeight: 600, color: '#111', whiteSpace: 'nowrap' }}>{row.지역}</span>
                           {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주요</span>}
-                          <span style={{ fontSize: 9.5, color: '#b0b8c1', whiteSpace: 'nowrap' }}>{row.톤}{row.count ? `·${row.count}대` : ''}</span>
+                          <span style={{ fontSize: 9.5, color: '#b0b8c1', whiteSpace: 'nowrap' }}>{row.톤}{cnt > 0 ? `·${cnt}대` : ''}</span>
                         </div>
-                        {/* 현재단가 */}
-                        <div style={{ fontSize: 11, textAlign: 'right', color: '#6b7280' }}>{row.existRate ? fmt(row.existRate) : '—'}</div>
-                        {/* KPP최저: 배지 인라인 한줄 */}
+                        {/* 현재단가 (×댓수) */}
+                        <div style={{ fontSize: 11, textAlign: 'right', color: '#6b7280' }}>{dispRate}</div>
+                        {/* KPP최저: 배지+단가 한줄 */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
                           {byLabel && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff', background: byBg, borderRadius: 4, padding: '2px 5px', flexShrink: 0 }}>{byLabel}</span>}
-                          <span style={{ fontSize: 11, fontWeight: 600, color: row.kppRate ? NAVY : '#999' }}>{row.kppRate ? fmt(row.kppRate) : '—'}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: row.kppRate ? NAVY : '#999' }}>{dispKpp}</span>
                         </div>
                         {/* 차이 */}
                         <div style={{ textAlign: 'right' }}>
@@ -1926,22 +1929,24 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
 
               {/* 운송사별 구간 단가 Y / B */}
               {(() => {
-                const sumY = manualKPP.rows.reduce((s, r) => s + (r.rateYt || 0), 0);
-                const sumB = manualKPP.rows.reduce((s, r) => s + (r.rateBg || 0), 0);
-                const sumExist = manualKPP.rows.reduce((s, r) => s + (r.existRate || 0), 0);
+                // 월금액 헬퍼: 댓수 있으면 ×댓수, 없으면 단가 그대로
+                const mAmt = (rate, cnt) => rate ? (cnt > 0 ? rate * cnt : rate) : 0;
+                const sumY = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateYt, r.count), 0);
+                const sumB = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateBg, r.count), 0);
+                const sumExist = manualKPP.rows.reduce((s, r) => s + mAmt(r.existRate, r.count), 0);
                 // 합계 기준으로 저렴한 운송사를 2번째 컬럼에
                 const yFirst = (sumY > 0 && sumB > 0) ? sumY <= sumB : sumY > 0;
                 const col2 = { label: yFirst ? 'Y' : 'B', key: yFirst ? 'rateYt' : 'rateBg', sum: yFirst ? sumY : sumB };
                 const col3 = { label: yFirst ? 'B' : 'Y', key: yFirst ? 'rateBg' : 'rateYt', sum: yFirst ? sumB : sumY };
-                const sumMain = manualKPP.rows.filter(r => r.isMain).reduce((s, r) => s + (r.kppRate || 0), 0);
-                const GCOLS = '1.1fr 0.8fr 0.85fr 0.75fr 0.75fr 0.8fr';
+                const sumMain = manualKPP.rows.filter(r => r.isMain).reduce((s, r) => s + mAmt(r.kppRate, r.count), 0);
+                const GCOLS = '1fr 0.85fr 0.9fr 0.8fr 0.75fr 0.8fr'; // 지역|업체|주요|col2|차이|col3
                 return (
                   <div style={{ marginTop: 14 }}>
                     <div style={sectionTitle}>운송사별 구간 단가</div>
                     <div style={{ border: '1px solid #eef0f3', borderRadius: 10, overflow: 'hidden' }}>
                       {/* 헤더 */}
                       <div style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 8px', background: NAVY }}>
-                        {['지역', '업체현단가', null, col2.label, col3.label, '차이'].map((h, i) => (
+                        {['지역', '업체현단가', null, col2.label, '차이', col3.label].map((h, i) => (
                           i === 2
                             ? <div key="주요구간" style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.95)', fontWeight: 600 }}>주요구간</div>
@@ -1951,37 +1956,43 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                       </div>
                       {/* 데이터 행 */}
                       {manualKPP.rows.map((row, i) => {
-                        const v2 = row[col2.key]; const v3 = row[col3.key];
+                        const cnt = row.count || 0;
+                        const v2raw = row[col2.key]; const v3raw = row[col3.key];
+                        const existAmt = mAmt(row.existRate, cnt);
+                        const mainAmt = row.isMain ? mAmt(row.kppRate, cnt) : 0;
+                        const v2Amt = mAmt(v2raw, cnt);
+                        const v3Amt = mAmt(v3raw, cnt);
+                        const byBg2 = col2.label === 'B' ? NAVY : '#d97706';
                         return (
                           <div key={i} style={{ display: 'grid', gridTemplateColumns: GCOLS, padding: '7px 8px', borderBottom: i < manualKPP.rows.length - 1 ? '0.5px solid #f0f1f3' : 'none', background: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.02)', alignItems: 'center' }}>
                             {/* 지역 + 주요 배지 */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                               <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{row.지역}</span>
-                              {row.isMain && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 4px', flexShrink: 0 }}>주요</span>}
+                              {row.isMain && <span style={{ fontSize: 7.5, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 3, padding: '1px 3px', flexShrink: 0 }}>주요</span>}
                             </div>
-                            {/* 업체현단가 */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: row.existRate ? '#374151' : '#ccc' }}>{row.existRate ? fmt(row.existRate) : '—'}</div>
-                            {/* 주요구간: isMain만 표시 + 캐리어 배지 */}
+                            {/* 업체현단가 (×댓수) */}
+                            <div style={{ fontSize: 11, textAlign: 'right', color: existAmt ? '#374151' : '#ccc' }}>{existAmt ? fmt(existAmt) : '—'}</div>
+                            {/* 주요구간: isMain + 배지 */}
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: 11, color: row.isMain && row.kppRate ? '#374151' : '#e5e7eb', fontWeight: row.isMain && row.kppRate ? 600 : 400 }}>
-                                {row.isMain && row.kppRate ? fmt(row.kppRate) : '—'}
-                              </div>
-                              {row.isMain && row.kppRate && carrierBY(row.carrier) && (
-                                <span style={{ display: 'inline-block', fontSize: 8, fontWeight: 700, color: '#fff', background: NAVY, borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>{carrierBY(row.carrier)}</span>
-                              )}
+                              {row.isMain && row.kppRate ? (
+                                <>
+                                  <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>{fmt(mainAmt)}</div>
+                                  {carrierBY(row.carrier) && <span style={{ display: 'inline-block', fontSize: 8, fontWeight: 700, color: '#fff', background: NAVY, borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>{carrierBY(row.carrier)}</span>}
+                                </>
+                              ) : <span style={{ color: '#e5e7eb' }}>—</span>}
                             </div>
-                            {/* col2 (저렴) */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: v2 ? '#dc2626' : '#ccc', fontWeight: v2 ? 700 : 400 }}>{v2 ? fmt(v2) : '—'}</div>
-                            {/* col3 (비쌈) */}
-                            <div style={{ fontSize: 11, textAlign: 'right', color: v3 ? NAVY : '#ccc', fontWeight: v3 ? 600 : 400 }}>{v3 ? fmt(v3) : '—'}</div>
-                            {/* 차이% */}
+                            {/* col2 저렴 (×댓수) */}
+                            <div style={{ fontSize: 11, textAlign: 'right', color: v2Amt ? '#dc2626' : '#ccc', fontWeight: v2Amt ? 700 : 400 }}>{v2Amt ? fmt(v2Amt) : '—'}</div>
+                            {/* 차이% — col2 바로 우측 */}
                             <div style={{ textAlign: 'right' }}>
                               {row.save !== null ? (
-                                <span style={{ display: 'inline-block', fontSize: 9.5, fontWeight: 700, padding: '2px 5px', borderRadius: 20, color: row.save > 0 ? '#dc2626' : '#16a34a', background: row.save > 0 ? '#fee2e2' : '#dcfce7' }}>
-                                  {row.save > 0 ? '▼' : '▲'} {Math.abs(row.pct)}%
+                                <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 4px', borderRadius: 20, color: row.save > 0 ? '#dc2626' : '#16a34a', background: row.save > 0 ? '#fee2e2' : '#dcfce7' }}>
+                                  {row.save > 0 ? '▼' : '▲'}{Math.abs(row.pct)}%
                                 </span>
                               ) : <span style={{ fontSize: 10, color: '#ccc' }}>—</span>}
                             </div>
+                            {/* col3 비쌈 (×댓수) */}
+                            <div style={{ fontSize: 11, textAlign: 'right', color: v3Amt ? NAVY : '#ccc', fontWeight: v3Amt ? 600 : 400 }}>{v3Amt ? fmt(v3Amt) : '—'}</div>
                           </div>
                         );
                       })}
@@ -1991,8 +2002,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (구간별 단가 
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumExist ? '#374151' : '#ccc' }}>{sumExist ? fmt(sumExist) : '—'}</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: sumMain ? '#374151' : '#ccc' }}>{sumMain ? fmt(sumMain) : '—'}</div>
                         <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{col2.sum ? fmt(col2.sum) : '—'}</div>
-                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{col3.sum ? fmt(col3.sum) : '—'}</div>
                         <div style={{ fontSize: 11, textAlign: 'right', color: '#9ca3af' }}>—</div>
+                        <div style={{ fontSize: 12, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{col3.sum ? fmt(col3.sum) : '—'}</div>
                       </div>
                     </div>
                   </div>
