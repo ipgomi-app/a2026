@@ -1951,12 +1951,12 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                   {/* 코드 */}
                   <div style={{ flex: '0 0 72px' }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
-                    <input style={inp} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+                    <input style={{ ...inp, color: '#0c447c', fontWeight: 700 }} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
                   </div>
                   {/* 고객사명 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                    <input style={inp} placeholder="(주)민승" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
+                    <input style={{ ...inp, color: '#0c447c', fontWeight: 700 }} placeholder="(주)민승" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
                   </div>
                 </div>
 
