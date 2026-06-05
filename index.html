@@ -1026,7 +1026,17 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
   const lbl = { fontSize: 12, fontWeight: 500, color: '#6b7280', marginBottom: 7, display: 'block' };
   const inp = { width: '100%', boxSizing: 'border-box' };
   const sectionTitle = { fontSize: 11, fontWeight: 600, letterSpacing: 0.5, color: NAVY, marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6 };
-  const chip = on => ({ padding: '9px 8px', borderRadius: 10, fontSize: 13, cursor: 'pointer', textAlign: 'center', fontWeight: on ? 700 : 500, border: 'none', background: '#e8edf2', color: on ? NAVY : '#64748b', boxShadow: on ? 'inset 3px 3px 6px #c3c8cd,inset -2px -2px 5px #fff' : '4px 4px 8px #c3c8cd,-3px -3px 7px #ffffff' });
+  const chip = on => on ? {
+    padding: '9px 8px', borderRadius: 10, fontSize: 13, cursor: 'pointer', textAlign: 'center', fontWeight: 700,
+    background: 'linear-gradient(180deg,#dbe8f7 0%,#b8d0ed 100%)',
+    color: NAVY,
+    borderTop: '1.5px solid #e8f0fa', borderLeft: '1.5px solid #d0e2f4',
+    borderRight: '1.5px solid #7a9fc0', borderBottom: '3px solid #5a7fa0',
+    boxShadow: '0 4px 0 #4a6a88, inset 0 1px 0 rgba(255,255,255,0.6)',
+  } : {
+    padding: '9px 8px', borderRadius: 10, fontSize: 13, cursor: 'pointer', textAlign: 'center', fontWeight: 400,
+    background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', boxShadow: 'none',
+  };
   const tgl = on => ({ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '7px 13px', borderRadius: 20, fontSize: 13, cursor: 'pointer', marginRight: 6, marginBottom: 7, fontWeight: on ? 600 : 400, border: on ? `1.5px solid ${NAVY}` : '1px solid #e5e7eb', background: on ? NAVY_BG : '#f9fafb', color: on ? NAVY : '#6b7280', boxShadow: on ? '0 1px 4px rgba(12,68,124,0.15)' : 'none' });
   const btnPri = { display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 15, fontWeight: 500, cursor: 'pointer', textAlign: 'center', background: NAVY, color: '#fff', border: 'none' };
   const btnSec = { display: 'block', width: '100%', padding: '13px', borderRadius: 10, fontSize: 15, fontWeight: 500, cursor: 'pointer', textAlign: 'center', background: 'none', border: '0.5px solid #d1d5db', color: '#111' };
