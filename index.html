@@ -690,11 +690,20 @@ function KPPTransportApp() {
     const pctAvg = Math.round(valid.reduce((s, r) => s + r.pct, 0) / valid.length);
     return { cheaper, total: valid.length, pctAvg };
   })();
-  const scanQuoteText = (manualKPP && tab === 'scan') ? `
+  const scanQuoteText = (() => {
+    if (!manualKPP || tab !== 'scan') return '';
+    const mains = manualKPP.rows.filter(r => r.isMain && r.kppRate);
+    const kpiLines = mains.map(r => {
+      const by = carrierBY(r.carrier);
+      const monthly = r.count > 0 ? r.kppRate * r.count : r.kppRate;
+      return `▶ KPP 단가 : ${fmt(r.kppRate)}원${by ? `(${by})` : ''}/회\n▶ 월 예상 : ${fmt(monthly)}원 (월 ${r.count > 0 ? r.count : 1}회)`;
+    }).join('\n');
+    const statLine = scanStats ? `▶ KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간 · 평균 ${scanStats.pctAvg >= 0 ? '▼' : '▲'}${Math.abs(scanStats.pctAvg)}% ${scanStats.pctAvg >= 0 ? '저렴' : '비쌈'}` : '';
+    return `
 ━━━━━━━━━━━━━━
-[운임 분석] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
-${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${carrierBY(r.carrier) ? '(' + carrierBY(r.carrier) + ')' : ''}${r.save !== null ? ` ${r.save > 0 ? '▼' : '▲'}${Math.abs(r.pct)}%` : ''}`).join('\n')}${scanStats ? `
-▶ KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간 · 평균 ${scanStats.pctAvg >= 0 ? '▼' : '▲'}${Math.abs(scanStats.pctAvg)}%` : ''}` : '';
+${kpiLines ? kpiLines + '\n━━━━━━━━━━━━━━\n' : ''}[운임 분석] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
+${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${carrierBY(r.carrier) ? '(' + carrierBY(r.carrier) + ')' : ''}${r.save !== null ? ` ${r.save > 0 ? '▼' : '▲'}${Math.abs(r.pct)}%` : ''}`).join('\n')}${statLine ? `\n${statLine}` : ''}`;
+  })();
   const scanLogLine = (() => {
     if (tab !== 'scan' || !manualKPP) return '';
     const mains = manualKPP.rows.filter(r => r.isMain && r.existRate > 0);
@@ -2088,22 +2097,16 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: hasItems ? 6 : 0, paddingBottom: hasItems ? 6 : 0, borderBottom: hasItems ? '1px solid rgba(0,0,0,0.07)' : 'none' }}>
                           <span style={{ fontSize: 14, fontWeight: 700, color: pctAvg >= 0 ? '#dc2626' : '#16a34a' }}>평균 {pctAvg >= 0 ? '▼' : '▲'} {Math.abs(pctAvg)}%</span>
                         </div>
-                        {cheaperRows.map((r, n) => (
-                          <div key={'c'+n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
-                            <span style={{ fontSize: 12, color: '#374151' }}>KPP 저렴 {n + 1}구간</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', minWidth: 90, textAlign: 'right' }}>-{fmt(r.save)}원/회</span>
-                          </div>
-                        ))}
-                        {expRows.map((r, n) => (
-                          <div key={'e'+n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
-                            <span style={{ fontSize: 12, color: '#374151' }}>KPP 비쌈 {n + 1}구간</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', minWidth: 90, textAlign: 'right' }}>+{fmt(Math.abs(r.save))}원/회</span>
-                          </div>
-                        ))}
-                        {sameRows.map((r, n) => (
-                          <div key={'s'+n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
-                            <span style={{ fontSize: 12, color: '#374151' }}>KPP 동일 {n + 1}구간</span>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', minWidth: 90, textAlign: 'right' }}>변동없음</span>
+                        {[
+                          ...cheaperRows.map(r => ({ ...r, _type: '저렴' })),
+                          ...expRows.map(r => ({ ...r, _type: '비쌈' })),
+                          ...sameRows.map(r => ({ ...r, _type: '동일' })),
+                        ].map((r, n) => (
+                          <div key={n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                            <span style={{ fontSize: 12, color: '#374151' }}>KPP {r._type} {n + 1}구간</span>
+                            <span style={{ fontSize: 12, fontWeight: r._type === '동일' ? 500 : 700, color: r._type === '저렴' ? '#dc2626' : r._type === '비쌈' ? '#16a34a' : '#6b7280', minWidth: 90, textAlign: 'right' }}>
+                              {r._type === '저렴' ? `-${fmt(r.save)}원/회` : r._type === '비쌈' ? `+${fmt(Math.abs(r.save))}원/회` : '변동없음'}
+                            </span>
                           </div>
                         ))}
                       </div>
