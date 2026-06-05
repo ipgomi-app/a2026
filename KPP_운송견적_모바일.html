@@ -1294,12 +1294,12 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
               {openCust && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={lbl}>고객 코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수 · 6자리</span>)</label>
-                      <input style={{ ...inp, borderColor: f.code && f.code.length !== 6 ? '#dc2626' : '' }} placeholder="예: 123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
-                      {f.code && f.code.length !== 6 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>6자리를 입력해주세요 ({f.code.length}/6)</div>}
+                    <div style={{ flex: '0 0 84px' }}>
+                      <label style={lbl}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
+                      <input style={{ ...inp, borderColor: f.code && f.code.length !== 6 ? '#dc2626' : '' }} placeholder="123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
+                      {f.code && f.code.length !== 6 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>{f.code.length}/6</div>}
                     </div>
-                    <div style={{ flex: 1.5 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
                       <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
                     </div>
