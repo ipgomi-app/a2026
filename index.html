@@ -695,8 +695,14 @@ function KPPTransportApp() {
 [운임 분석] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
 ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${carrierBY(r.carrier) ? '(' + carrierBY(r.carrier) + ')' : ''}${r.save !== null ? ` ${r.save > 0 ? '▼' : '▲'}${Math.abs(r.pct)}%` : ''}`).join('\n')}${scanStats ? `
 ▶ KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간 · 평균 ${scanStats.pctAvg >= 0 ? '▼' : '▲'}${Math.abs(scanStats.pctAvg)}%` : ''}` : '';
-  const scanLogLine = (scanStats && tab === 'scan') ? `    · 운임 분석 : KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간, 평균 ${scanStats.pctAvg >= 0 ? '↓' : '↑'}${Math.abs(scanStats.pctAvg)}%
-${manualKPP.rows.map(r => `      · ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${r.save !== null ? ` ${r.save > 0 ? '↓' : '↑'}${Math.abs(r.pct)}%` : ''}`).join('\n')}` : '';
+  const scanLogLine = (() => {
+    if (tab !== 'scan' || !manualKPP) return '';
+    const mains = manualKPP.rows.filter(r => r.isMain && r.existRate > 0);
+    if (!mains.length) return '';
+    return mains.map(r =>
+      `    · 운임 정보 : 출발지(${effScanDep}) -> ${r.지역} ${r.톤}, ${fmt(r.existRate)}원/대${r.count > 0 ? `, 물동량 ${r.count * 12}대/년` : ''}`
+    ).join('\n');
+  })();
 
   const quoteText = `[KPP 운송 견적]
 ━━━━━━━━━━━━━━
@@ -903,7 +909,7 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
     const secScanNo = 2 + nRoi;
     const secNoticeNo = 2 + nRoi + nScan;
 
-    const kpiHtml = kppRate ? `
+    const kpiHtml = (kppRate && tab !== 'scan') ? `
 <div class="kpi">
   <div class="b hl"><div class="lbl">KPP 제안 단가</div><div class="v">${fmt(kppRate)}<small>원/회</small></div></div>
   ${freq > 0 ? `<div class="b"><div class="lbl">월 예상 비용</div><div class="v">${fmt(kppMonthly)}<small>원</small></div></div>` : ''}
@@ -2070,14 +2076,38 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                   </div>
                   {(() => {
                     const valid = manualKPP.rows.filter(r => r.save !== null);
-                    const cheaper = valid.filter(r => r.save > 0).length;
-                    const pctAvg = valid.length > 0 ? Math.round(valid.reduce((s, r) => s + r.pct, 0) / valid.length) : 0;
-                    return valid.length > 0 ? (
-                      <div style={{ marginTop: 10, padding: '10px 8px', background: cheaper > valid.length / 2 ? '#fef2f2' : '#f0fdf4', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, color: '#374151' }}>KPP 저렴 {cheaper}/{valid.length}개 구간</span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: pctAvg >= 0 ? '#dc2626' : '#16a34a' }}>평균 {pctAvg >= 0 ? '▼' : '▲'} {Math.abs(pctAvg)}%</span>
+                    if (!valid.length) return null;
+                    const cheaperRows = valid.filter(r => r.save > 0);
+                    const expRows = valid.filter(r => r.save < 0);
+                    const sameRows = valid.filter(r => r.save === 0);
+                    const cheaper = cheaperRows.length;
+                    const pctAvg = Math.round(valid.reduce((s, r) => s + r.pct, 0) / valid.length);
+                    const hasItems = cheaper > 0 || expRows.length > 0 || sameRows.length > 0;
+                    return (
+                      <div style={{ marginTop: 10, padding: '10px 8px', background: cheaper >= valid.length / 2 ? '#fef2f2' : '#f0fdf4', borderRadius: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: hasItems ? 6 : 0, paddingBottom: hasItems ? 6 : 0, borderBottom: hasItems ? '1px solid rgba(0,0,0,0.07)' : 'none' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: pctAvg >= 0 ? '#dc2626' : '#16a34a' }}>평균 {pctAvg >= 0 ? '▼' : '▲'} {Math.abs(pctAvg)}%</span>
+                        </div>
+                        {cheaperRows.map((r, n) => (
+                          <div key={'c'+n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                            <span style={{ fontSize: 12, color: '#374151' }}>KPP 저렴 {n + 1}구간</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', minWidth: 90, textAlign: 'right' }}>-{fmt(r.save)}원/회</span>
+                          </div>
+                        ))}
+                        {expRows.map((r, n) => (
+                          <div key={'e'+n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                            <span style={{ fontSize: 12, color: '#374151' }}>KPP 비쌈 {n + 1}구간</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', minWidth: 90, textAlign: 'right' }}>+{fmt(Math.abs(r.save))}원/회</span>
+                          </div>
+                        ))}
+                        {sameRows.map((r, n) => (
+                          <div key={'s'+n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                            <span style={{ fontSize: 12, color: '#374151' }}>KPP 동일 {n + 1}구간</span>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', minWidth: 90, textAlign: 'right' }}>변동없음</span>
+                          </div>
+                        ))}
                       </div>
-                    ) : null;
+                    );
                   })()}
                 </div>
 
