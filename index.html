@@ -318,8 +318,6 @@ function KPPTransportApp() {
   const openSaveSheet = () => setShowSaveSheet(true);
   const onPhoneSave = () => {
     setShowSaveSheet(false);
-    if (!f.company.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
-    if (!/^\d{6}$/.test(f.code.trim())) { showToast('고객 코드는 6자리 숫자로 입력해주세요'); return; }
     setShowSaveConfirm(true);
   };
   // 기존 견적일시 표기용: "26년 6월 15일 08시"
@@ -1054,10 +1052,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
   const accHdr = (open) => ({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', padding: '2px 0 0' });
   const chevron = (open) => ({ fontSize: 12, color: NAVY, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' });
 
-  const canOut = !!(kppRate && f.company.trim() && /^\d{6}$/.test(f.code.trim()));
+  const canOut = !!kppRate;
   const outGuard = (then) => {
-    if (!f.company.trim()) { showToast('고객사명을 먼저 입력해주세요'); return; }
-    if (!/^\d{6}$/.test(f.code.trim())) { showToast('고객 코드 6자리를 입력해주세요'); return; }
     if (!kppRate) { showToast('운송사(Y/B)를 먼저 선택해주세요'); return; }
     then();
   };
