@@ -1949,7 +1949,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                     </select>
                   </div>
                   {/* 코드 */}
-                  <div style={{ flex: '0 0 72px' }}>
+                  <div style={{ flex: '0 0 96px' }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
                     <input style={{ ...inp }} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
                   </div>
