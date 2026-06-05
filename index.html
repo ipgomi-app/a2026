@@ -590,6 +590,15 @@ function KPPTransportApp() {
   useEffect(() => { try { localStorage.setItem('kpp_manual_rows', JSON.stringify(manualRows)); } catch {} }, [manualRows]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_company', scanCompany); } catch {} }, [scanCompany]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_code', scanCode); } catch {} }, [scanCode]);
+  // 견적산출 탭에서 고객사명/코드 수정 시 → 운임분석 탭도 재연동 (scan 독립값 초기화)
+  const prevCompanyRef = React.useRef(f.company);
+  const prevCodeRef = React.useRef(f.code);
+  useEffect(() => {
+    if (f.company !== prevCompanyRef.current) { prevCompanyRef.current = f.company; setScanCompany(''); }
+  }, [f.company]);
+  useEffect(() => {
+    if (f.code !== prevCodeRef.current) { prevCodeRef.current = f.code; setScanCode(''); }
+  }, [f.code]);
   const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); setMargin(MARGIN_DEFAULT); };
   const resetScan = () => {
     try { localStorage.removeItem('kpp_scan_dep2'); localStorage.removeItem('kpp_scan_ton'); localStorage.removeItem('kpp_manual_rows'); localStorage.removeItem('kpp_scan_company'); localStorage.removeItem('kpp_scan_code'); } catch {}
