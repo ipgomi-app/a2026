@@ -309,7 +309,7 @@ function KPPTransportApp() {
     };
     const onMove = (e) => {
       if (!pulling || !e.touches || !e.touches.length) return;
-      if (e.touches[0].clientY - startY > 350) { pulling = false; setShowRefresh(true); }
+      if (e.touches[0].clientY - startY > 300) { pulling = false; setShowRefresh(true); }
     };
     document.addEventListener('touchstart', onStart, { passive: true });
     document.addEventListener('touchmove', onMove, { passive: true });
