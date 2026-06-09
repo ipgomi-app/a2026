@@ -1148,7 +1148,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
       </div>
 
       <div style={{ display: 'flex', borderBottom: '0.5px solid #e5e7eb', background: '#fff', position: 'sticky', top: 0, zIndex: 50 }}>
-        {[['quote', '견적 산출'], ['scan', '운임 분석']].map(([id, label]) => (
+        {[['quote', '기본 견적'], ['scan', '운임 비교']].map(([id, label]) => (
           <button type="button" key={id} onClick={() => setTab(id)} style={{
             flex: 1, padding: '14px 0', fontSize: 14, fontWeight: tab === id ? 600 : 400, textAlign: 'center',
             color: tab === id ? NAVY : '#6b7280',
