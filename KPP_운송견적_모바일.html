@@ -912,6 +912,7 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       const sY = rows.reduce((s, r) => s + mAmt2(r.rateYt, r.count), 0);
       const sB = rows.reduce((s, r) => s + mAmt2(r.rateBg, r.count), 0);
       const sE = rows.reduce((s, r) => s + mAmt2(r.existRate, r.count), 0);
+      const hasExist = sE > 0; // 현단가 입력 여부
       const cntY = rows.filter(r => r.rateYt > 0).length;
       const cntB = rows.filter(r => r.rateBg > 0).length;
       const yF = cntY !== cntB ? cntY > cntB : (sY > 0 && sB > 0 ? sY <= sB : sY > 0);
@@ -924,25 +925,34 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
         const diffStr = diff !== null ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '—';
         const diffClr = diff === null ? '#64748b' : diff < 0 ? '#dc2626' : '#15803d';
         const badge = r.isMain ? ' <span style="background:#0c447c;color:#fff;font-size:7px;padding:1px 3px;border-radius:2px;font-weight:700;vertical-align:middle">주</span>' : '';
-        const sub = `${r.톤}/${cnt > 0 ? cnt + '회' : '-'}`;
-        return `<tr>
+        const sub = `${r.톤}${cnt > 0 ? '/' + cnt + '회' : ''}`;
+        if (hasExist) {
+          return `<tr>
 <td>${r.지역}${badge} <span style="color:#6b7280;font-size:9px">${sub}</span></td>
 <td class="r">${eAmt ? fmt(eAmt) : '-'}</td>
 <td class="r" style="color:#0c3460;font-weight:700">${c1Amt ? fmt(c1Amt) : '-'}</td>
 <td class="r" style="color:${diffClr};font-weight:700">${diffStr}</td>
 </tr>`;
+        } else {
+          return `<tr>
+<td>${r.지역}${badge} <span style="color:#6b7280;font-size:9px">${sub}</span></td>
+<td class="r" style="color:#0c3460;font-weight:700">${c1Amt ? fmt(c1Amt) : '-'}</td>
+</tr>`;
+        }
       }).join('');
       const totDiff = c1.sum && sE ? c1.sum - sE : null;
       const totBg = totDiff === null ? '#f1f5f9' : totDiff < 0 ? '#fef2f2' : '#f0fdf4';
       const totClr = totDiff === null ? '#374151' : totDiff < 0 ? '#dc2626' : '#15803d';
       const totDiffStr = totDiff !== null ? `${totDiff > 0 ? '+' : ''}${fmt(totDiff)}` : '—';
-      const totRow = `<tr style="font-weight:700;background:${totBg}"><td>합계</td><td class="r" style="color:#374151">${fmt(sE)}</td><td class="r" style="color:${totClr}">${fmt(c1.sum)}</td><td class="r" style="color:${totClr}">${totDiffStr}</td></tr>`;
+      const totRow = hasExist
+        ? `<tr style="font-weight:700;background:${totBg}"><td>합계</td><td class="r" style="color:#374151">${fmt(sE)}</td><td class="r" style="color:${totClr}">${fmt(c1.sum)}</td><td class="r" style="color:${totClr}">${totDiffStr}</td></tr>`
+        : `<tr style="font-weight:700;background:#f1f5f9"><td>합계</td><td class="r" style="color:#0c3460">${fmt(c1.sum)}</td></tr>`;
       const annDiff = totDiff !== null ? totDiff * 12 : null;
       const annPct = annDiff !== null && sE > 0 ? Math.round(Math.abs(annDiff) / (sE * 12) * 100) : null;
       const annClr = annDiff === null ? '#64748b' : annDiff < 0 ? '#dc2626' : '#15803d';
       const annStr = annDiff !== null ? `${annDiff < 0 ? '▼' : '▲'} ${fmt(Math.abs(annDiff))}원${annPct !== null ? ` (${annPct}%)` : ''}` : '—';
-      const annRow = annDiff !== null ? `<tr style="font-weight:700;background:${totBg}"><td>연간 예상 절감</td><td colspan="3" class="r" style="color:${annClr}">${annStr}</td></tr>` : '';
-      return { label: c1.label, rows: dataRows + totRow + annRow };
+      const annRow = annDiff !== null ? `<tr style="font-weight:700;background:${totBg}"><td>연간 예상 절감</td><td colspan="${hasExist ? 3 : 1}" class="r" style="color:${annClr}">${annStr}</td></tr>` : '';
+      return { label: c1.label, rows: dataRows + totRow + annRow, hasExist };
     })() : null;
     const scanSecRows = scanSecMeta ? scanSecMeta.rows : '';
     const nRoi = effRoiRows ? 1 : 0, nScan = scanSecRows ? 1 : 0;
@@ -1007,7 +1017,9 @@ ${effRoiRows ? `<div class="sec">${effRoiTitle}</div>
 <table><tr><th>구분</th><th>금액</th></tr>${effRoiRows}</table>` : ''}
 
 ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합계 비교)</div>
-<table><tr><th>지역</th><th>현단가</th><th>KPP 최저단가</th><th>차이</th></tr>${scanSecRows}</table>` : ''}
+${scanSecMeta && !scanSecMeta.hasExist
+  ? `<table><tr><th>지역</th><th>KPP 최저단가</th></tr>${scanSecRows}</table>`
+  : `<table><tr><th>지역</th><th>현단가</th><th>KPP 최저단가</th><th>차이</th></tr>${scanSecRows}</table>`}` : ''}
 
 <div class="sec">${secNoticeNo}. 안내 사항</div>
 <table>${noticeRows}</table>
