@@ -2003,7 +2003,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                             <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (!row.region || row.dest) ? 2 : 0 }}
                               value={row.region} onChange={e => {
                                 const v = e.target.value;
-                                const DEPS = { 0: [1], 2: [3, 4], 3: [4] }; // 종속행(앞칸 비면 같이 무효)
+                                // 종속 행: 앞칸이 비면 뒷칸 전부 초기화 (조건 없이)
+                                const DEPS = { 0: [1], 1: [], 2: [3, 4], 3: [4], 4: [] };
                                 const empty = () => ({ region: '', dest: '', rate: '', count: '', tonIdx: 3 });
                                 if (v === '__RESET__') {
                                   setManualRows(prev => {
@@ -2013,16 +2014,16 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                                       next[4] = empty();
                                     } else {
                                       next[i] = empty();
+                                      (DEPS[i] || []).forEach(d => { next[d] = empty(); }); // 종속 행 무조건 초기화
                                     }
-                                    (DEPS[i] || []).forEach(d => { if (!next[d].dest) next[d] = empty(); }); // 종속 고아행 정리
                                     return next;
                                   });
                                   return;
                                 }
-                                // 지역 변경 → 해당 행 도착지·단가·횟수 초기화 + 종속 고아행 정리
+                                // 지역 변경 → 해당 행 초기화 + 종속 행 무조건 초기화
                                 setManualRows(prev => {
                                   const next = prev.map((r, idx) => idx !== i ? { ...r } : { ...r, region: v, dest: '', rate: '', count: '', tonIdx: 3 });
-                                  (DEPS[i] || []).forEach(d => { if (!next[d].dest) next[d] = empty(); });
+                                  (DEPS[i] || []).forEach(d => { next[d] = empty(); });
                                   return next;
                                 });
                               }}>
@@ -2035,7 +2036,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                               <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (row.region && !row.dest) ? 3 : 0 }}
                                 value={row.dest} onChange={e => {
                                   const nd = e.target.value;
-                                  if (nd && nd !== row.dest) setManualRows(prev => prev.map((r, idx) => idx !== i ? r : { ...r, dest: nd, rate: '', count: '', tonIdx: 3 }));
+                                  if (nd && nd !== row.dest) setManualRows(prev => {
+                                    const DEPS2 = { 0: [1], 1: [], 2: [3, 4], 3: [4], 4: [] };
+                                    const emp = () => ({ region: '', dest: '', rate: '', count: '', tonIdx: 3 });
+                                    const next = prev.map((r, idx) => idx !== i ? { ...r } : { ...r, dest: nd, rate: '', count: '', tonIdx: 3 });
+                                    (DEPS2[i] || []).forEach(d => { next[d] = emp(); });
+                                    return next;
+                                  });
                                   else updateManualRow(i, 'dest', nd);
                                 }}>
                                 <option value="">시·군 선택</option>
