@@ -728,10 +728,8 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
     if (tab !== 'scan' || !manualKPP) return '';
     const mains = manualKPP.rows.filter(r => r.isMain && r.existRate > 0);
     if (!mains.length) return '';
-    const prefix  = `    · 운임 정보 : `;
-    const indent  = `                  `;
-    return mains.map((r, i) =>
-      `${i === 0 ? prefix : indent}출발지(${effScanDep}) -> ${r.지역} ${r.톤}, ${fmt(r.existRate)}원/대${r.count > 0 ? `, 물동량 ${r.count * 12}대/년` : ''}`
+    return mains.map(r =>
+      `    · 운임 정보 : 출발지(${effScanDep}) -> ${r.지역} ${r.톤}, ${fmt(r.existRate)}원/대${r.count > 0 ? `, 물동량 ${r.count * 12}대/년` : ''}`
     ).join('\n');
   })();
 
@@ -778,9 +776,9 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
 
   const cargoTypeText = f.cargoType.length > 0 ? f.cargoType.join(',') + ' 포장' : '';
 
-  const routeText = f.dep && f.dest
+  const routeText = tab === 'scan' ? '' : (f.dep && f.dest
     ? `${f.dep} → ${f.dest}, ${TONS[f.tonIdx]} ${bodyText}(${temp})`
-    : '';
+    : '');
 
   const volRev = [
     yearlyCars > 0 && `물동량 : ${yearlyCars} 대/년`,
