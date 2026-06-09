@@ -714,13 +714,14 @@ function KPPTransportApp() {
     const mains = manualKPP.rows.filter(r => r.isMain && r.kppRate);
     const kpiLines = mains.map(r => {
       const by = carrierBY(r.carrier);
-      const monthly = r.count > 0 ? r.kppRate * r.count : r.kppRate;
-      return `▶ KPP 단가 : ${fmt(r.kppRate)}원${by ? `(${by})` : ''}/회\n▶ 월 예상 : ${fmt(monthly)}원 (월 ${r.count > 0 ? r.count : 1}회)`;
+      const lines = [`▶ KPP 구간 단가 : ${fmt(r.kppRate)}원${by ? `(${by})` : ''}/회`];
+      if (r.count > 0) lines.push(`▶ 월 예상 운임 : ${fmt(r.kppRate * r.count)}원 (월 ${r.count}회)`);
+      return lines.join('\n');
     }).join('\n');
     const statLine = scanStats ? `▶ KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간 · 평균 ${scanStats.pctAvg >= 0 ? '▼' : '▲'}${Math.abs(scanStats.pctAvg)}% ${scanStats.pctAvg >= 0 ? '저렴' : '비쌈'}` : '';
     return `
 ━━━━━━━━━━━━━━
-${kpiLines ? kpiLines + '\n━━━━━━━━━━━━━━\n' : ''}[운임 분석] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
+${kpiLines ? kpiLines + '\n━━━━━━━━━━━━━━\n' : ''}[운임 비교] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
 ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${carrierBY(r.carrier) ? '(' + carrierBY(r.carrier) + ')' : ''}${r.save !== null ? ` ${r.save > 0 ? '▼' : '▲'}${Math.abs(r.pct)}%` : ''}`).join('\n')}${statLine ? `\n${statLine}` : ''}`;
   })();
   const scanLogLine = (() => {
@@ -734,7 +735,23 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
     ).join('\n');
   })();
 
-  const quoteText = `[KPP 운송 견적]
+  const quoteText = (() => {
+    if (tab === 'scan') {
+      // 운임 비교 탭: 실제 분석 구간 기준, 화물·조건 제외
+      const co = effScanCompany || f.company || '(미입력)';
+      const scanRouteHdr = manualKPP && manualKPP.rows.filter(r => r.isMain).length
+        ? manualKPP.rows.filter(r => r.isMain).map(r => `${effScanDep} → ${r.지역}`).join(' / ')
+        : `${effScanDep} 출발`;
+      return `[KPP 운송 견적]
+━━━━━━━━━━━━━━
+■ 고객사 : ${co}
+■ 구간 : ${scanRouteHdr}
+■ 차량 : ${TONS[scanTonIdx]}${scanQuoteText}
+━━━━━━━━━━━━━━
+유효 30일`;
+    }
+    // 기본 견적 탭
+    return `[KPP 운송 견적]
 ━━━━━━━━━━━━━━
 ■ 고객사 : ${f.company || '(미입력)'}
 ■ 구간 : ${f.dep} → ${f.dest}
@@ -743,12 +760,13 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
 ■ 조건 : ${condText}${specialConds.length || temp !== '상온' ? ' (※별도협의)' : ''}${distKm ? `
 ■ 거리 : ${distKm} km` : ''}
 ━━━━━━━━━━━━━━
-▶ KPP 단가 : ${kppRate ? fmt(kppRate) : '-'}원/회${selLabel ? `(${selLabel})` : ''}${freq > 0 ? `
-▶ 월 예상 : ${fmt(kppMonthly)}원 (월 ${freq}회)` : ''}${existRate > 0 && freq > 0 ? `
+▶ KPP 단가 : ${kppRate ? fmt(kppRate) : '-'}원/회${selLabel ? `(${selLabel})` : ''}${hasFreq ? `
+▶ 월 예상 : ${fmt(kppMonthly)}원 (월 ${freq}회)` : ''}${existRate > 0 && hasFreq ? `
 ▶ 기존 대비 : ${savings >= 0 ? '-' : '+'}${fmt(Math.abs(savings))}원/월 (${savingsPct}%)
-▶ 연간 절감 : ${fmt(savings * 12)}원` : ''}${scanQuoteText}
+▶ 연간 절감 : ${fmt(savings * 12)}원` : ''}
 ━━━━━━━━━━━━━━
 유효 30일`;
+  })();
 
   // ── 업무일지 자동 생성 ──
   const parseNum = v => parseFloat(String(v || '').replace(/[^\d.]/g, '')) || 0;
