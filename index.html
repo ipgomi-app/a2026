@@ -336,11 +336,11 @@ function KPPTransportApp() {
     const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const company = (tab === 'scan' ? effScanCompany : f.company).trim();
     const code = (tab === 'scan' ? effScanCode : f.code).trim();
-    // 같은 코드의 기존 견적 → 갱신 확인
+    // 같은 코드의 기존 견적 → 갱신 확인 (scan탭은 doScanSave가 이미 저장했으므로 확인 없이 덮어쓰기)
     const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
-    if (idx !== -1 && action !== 'update') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
-    // 코드 유사(편집거리≤2) 또는 업체명 유사(앞 2자리 일치) → 코드 오입력 가능성 안내
-    if (idx === -1 && action !== 'force') {
+    if (idx !== -1 && action !== 'update' && tab !== 'scan') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
+    // 코드 유사(편집거리≤2) 또는 업체명 유사(앞 2자리 일치) → 코드 오입력 가능성 안내 (scan탭은 이미 검증됨)
+    if (idx === -1 && action !== 'force' && tab !== 'scan') {
       const f2 = company.slice(0, 2);
       let codeMatch = null; // 코드 유사
       let nameMatch = null; // 업체명 유사
