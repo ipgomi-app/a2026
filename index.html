@@ -334,8 +334,8 @@ function KPPTransportApp() {
     const amount = kppRate != null ? kppRate : (avail.length ? Math.min(...avail) : 0);
     const now = new Date();
     const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const company = f.company.trim();
-    const code = f.code.trim();
+    const company = (tab === 'scan' ? effScanCompany : f.company).trim();
+    const code = (tab === 'scan' ? effScanCode : f.code).trim();
     // 같은 코드의 기존 견적 → 갱신 확인
     const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
     if (idx !== -1 && action !== 'update') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
@@ -369,6 +369,7 @@ function KPPTransportApp() {
     }
     const rec = {
       id: idx !== -1 ? list[idx].id : Date.now(), company, code,
+      ...(tab === 'scan' ? { type: 'scan' } : {}),
       savedAt: now.toLocaleDateString('ko-KR'), ts: now.getTime(), ym,
       mgr: { name: mgrName, branch: info.branch || '', region: info.region || '' },
       carrier: effCarrier || '', amount,
@@ -1721,7 +1722,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
               <div style={{ fontSize: 26, marginBottom: 8 }}>📱</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: '#111', marginBottom: 4 }}>개인 저장하시겠습니까?</div>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 14 }}>
-                <b style={{ color: NAVY }}>{f.company}</b> 으(로) 이 기기에 저장됩니다.
+                <b style={{ color: NAVY }}>{tab === 'scan' ? effScanCompany : f.company}</b> 으(로) 이 기기에 저장됩니다.
                 {MGR_INFO[mgrName] && <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 3 }}>담당자 <b style={{ color: '#475569' }}>{mgrName}</b> · 방문 통계 자동 집계</div>}
               </div>
               <div style={{ textAlign: 'left', marginBottom: 14 }}>
@@ -1773,7 +1774,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
             >
               <div style={{ fontSize: 26, marginBottom: 10 }}>🔁</div>
               <div style={{ fontSize: 14.5, fontWeight: 700, color: '#111', marginBottom: 6, lineHeight: 1.5 }}>
-                <b style={{ color: NAVY }}>{f.code}</b> · {f.company}
+                <b style={{ color: NAVY }}>{tab === 'scan' ? effScanCode : f.code}</b> · {tab === 'scan' ? effScanCompany : f.company}
               </div>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 18, lineHeight: 1.6 }}>
                 <b style={{ color: '#b45309' }}>{updateWhen}</b>에 기견적건이 있습니다.<br />갱신하시겠습니까?
