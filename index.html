@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- v20260609 -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -63,7 +63,11 @@
   // PWA 서비스워커 등록 (file:// 로컬 실행 시엔 건너뜀)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => { reg.update(); }).catch(() => {});
+      // SW 업데이트 시 자동 새로고침
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data && e.data.type === 'SW_UPDATED') window.location.reload();
+      });
     });
   }
 </script>
@@ -590,15 +594,19 @@ function KPPTransportApp() {
   useEffect(() => { try { localStorage.setItem('kpp_manual_rows', JSON.stringify(manualRows)); } catch {} }, [manualRows]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_company', scanCompany); } catch {} }, [scanCompany]);
   useEffect(() => { try { localStorage.setItem('kpp_scan_code', scanCode); } catch {} }, [scanCode]);
-  // 견적산출 탭에서 고객사명/코드 수정 시 → 운임분석 탭도 재연동 (scan 독립값 초기화)
+  // 견적산출 탭에서 고객사명/코드/출발지 수정 시 → 운임분석 탭도 재연동 (scan 독립값 초기화)
   const prevCompanyRef = React.useRef(f.company);
   const prevCodeRef = React.useRef(f.code);
+  const prevDepRef = React.useRef(f.dep);
   useEffect(() => {
     if (f.company !== prevCompanyRef.current) { prevCompanyRef.current = f.company; setScanCompany(''); }
   }, [f.company]);
   useEffect(() => {
     if (f.code !== prevCodeRef.current) { prevCodeRef.current = f.code; setScanCode(''); }
   }, [f.code]);
+  useEffect(() => {
+    if (f.dep !== prevDepRef.current) { prevDepRef.current = f.dep; setScanDep(''); }
+  }, [f.dep]);
   const resetForm = () => { try { localStorage.removeItem('kpp_draft'); } catch {} setF(INIT); setMargin(MARGIN_DEFAULT); };
   const resetScan = () => {
     try { localStorage.removeItem('kpp_scan_dep2'); localStorage.removeItem('kpp_scan_ton'); localStorage.removeItem('kpp_manual_rows'); localStorage.removeItem('kpp_scan_company'); localStorage.removeItem('kpp_scan_code'); } catch {}
@@ -639,6 +647,7 @@ function KPPTransportApp() {
 
   const existRate = parseFloat((f.existRate || '').replace(/,/g, '')) || 0;
   const freq = parseInt(f.freq) || 1; // 공란/0 입력 시 1회로 인식
+  const hasFreq = f.freq !== '' && parseInt(f.freq) > 0; // 실제 입력된 횟수 여부
   const kppMonthly = (kppRate || 0) * freq;
   const existMonthly = existRate * freq;
   const savings = existMonthly - kppMonthly;
@@ -668,15 +677,22 @@ function KPPTransportApp() {
 
   // ── 운임 분석(scan) 데이터 — 출력 빌더에서 사용하므로 위에서 계산 ──
   const manualKPP = useMemo(() => {
-    const rows = manualRows
-      .map((r, origIdx) => ({ ...r, origIdx }))
-      .filter(r => r.dest && Number(r.rate) > 0)
+    // 입력칸과 동일한 연쇄 규칙으로 활성 행만 산출 (앞칸 지역 선택 시 다음칸 노출)
+    const mr = manualRows;
+    const active = [0];
+    if (mr[0] && mr[0].dest) active.push(1);
+    active.push(2);
+    if (mr[2] && mr[2].dest) active.push(3);
+    if (mr[2] && mr[2].dest && mr[3] && mr[3].dest) active.push(4);
+    const rows = active
+      .map(origIdx => ({ ...manualRows[origIdx], origIdx }))
+      .filter(r => r.dest)
       .map(r => {
         const isMain = r.origIdx < 2;
         const tIdx = r.tonIdx != null ? Number(r.tonIdx) : scanTonIdx; // 행별 톤수
         const low = calcLowest(effScanDep, r.dest, tIdx, margin);
         const kppRate = low.rate;
-        const existRate = Number(r.rate);
+        const existRate = Number(r.rate) || 0;
         const save = kppRate && existRate ? existRate - kppRate : null;
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
         const rateYt = calcRate(effScanDep, r.dest, tIdx, margin);
@@ -702,27 +718,42 @@ function KPPTransportApp() {
     const mains = manualKPP.rows.filter(r => r.isMain && r.kppRate);
     const kpiLines = mains.map(r => {
       const by = carrierBY(r.carrier);
-      const monthly = r.count > 0 ? r.kppRate * r.count : r.kppRate;
-      return `▶ KPP 단가 : ${fmt(r.kppRate)}원${by ? `(${by})` : ''}/회\n▶ 월 예상 : ${fmt(monthly)}원 (월 ${r.count > 0 ? r.count : 1}회)`;
+      const lines = [`▶ KPP 구간 단가 : ${fmt(r.kppRate)}원${by ? `(${by})` : ''}/회`];
+      if (r.count > 0) lines.push(`▶ 월 예상 운임 : ${fmt(r.kppRate * r.count)}원 (월 ${r.count}회)`);
+      return lines.join('\n');
     }).join('\n');
     const statLine = scanStats ? `▶ KPP 저렴 ${scanStats.cheaper}/${scanStats.total}구간 · 평균 ${scanStats.pctAvg >= 0 ? '▼' : '▲'}${Math.abs(scanStats.pctAvg)}% ${scanStats.pctAvg >= 0 ? '저렴' : '비쌈'}` : '';
     return `
 ━━━━━━━━━━━━━━
-${kpiLines ? kpiLines + '\n━━━━━━━━━━━━━━\n' : ''}[운임 분석] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
+${kpiLines ? kpiLines + '\n━━━━━━━━━━━━━━\n' : ''}[운임 비교] ${effScanDep} 출발 · ${TONS[scanTonIdx]}
 ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRate) : '-'} → KPP ${r.kppRate ? fmt(r.kppRate) : '-'}${carrierBY(r.carrier) ? '(' + carrierBY(r.carrier) + ')' : ''}${r.save !== null ? ` ${r.save > 0 ? '▼' : '▲'}${Math.abs(r.pct)}%` : ''}`).join('\n')}${statLine ? `\n${statLine}` : ''}`;
   })();
   const scanLogLine = (() => {
     if (tab !== 'scan' || !manualKPP) return '';
     const mains = manualKPP.rows.filter(r => r.isMain && r.existRate > 0);
     if (!mains.length) return '';
-    const prefix  = `    · 운임 정보 : `;
-    const indent  = `                  `;
-    return mains.map((r, i) =>
-      `${i === 0 ? prefix : indent}출발지(${effScanDep}) -> ${r.지역} ${r.톤}, ${fmt(r.existRate)}원/대${r.count > 0 ? `, 물동량 ${r.count * 12}대/년` : ''}`
+    return mains.map(r =>
+      `    · 운임 정보 : 출발지(${effScanDep}) -> ${r.지역} ${r.톤}, ${fmt(r.existRate)}원/대${r.count > 0 ? `, 물동량 ${r.count * 12}대/년` : ''}`
     ).join('\n');
   })();
 
-  const quoteText = `[KPP 운송 견적]
+  const quoteText = (() => {
+    if (tab === 'scan') {
+      // 운임 비교 탭: 실제 분석 구간 기준, 화물·조건 제외
+      const co = effScanCompany || f.company || '(미입력)';
+      const scanRouteHdr = manualKPP && manualKPP.rows.filter(r => r.isMain).length
+        ? manualKPP.rows.filter(r => r.isMain).map(r => `${effScanDep} → ${r.지역}`).join(' / ')
+        : `${effScanDep} 출발`;
+      return `[KPP 운송 견적]
+━━━━━━━━━━━━━━
+■ 고객사 : ${co}
+■ 구간 : ${scanRouteHdr}
+■ 차량 : ${TONS[scanTonIdx]}${scanQuoteText}
+━━━━━━━━━━━━━━
+유효 30일`;
+    }
+    // 기본 견적 탭
+    return `[KPP 운송 견적]
 ━━━━━━━━━━━━━━
 ■ 고객사 : ${f.company || '(미입력)'}
 ■ 구간 : ${f.dep} → ${f.dest}
@@ -731,12 +762,13 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
 ■ 조건 : ${condText}${specialConds.length || temp !== '상온' ? ' (※별도협의)' : ''}${distKm ? `
 ■ 거리 : ${distKm} km` : ''}
 ━━━━━━━━━━━━━━
-▶ KPP 단가 : ${kppRate ? fmt(kppRate) : '-'}원/회${selLabel ? `(${selLabel})` : ''}${freq > 0 ? `
-▶ 월 예상 : ${fmt(kppMonthly)}원 (월 ${freq}회)` : ''}${existRate > 0 && freq > 0 ? `
+▶ KPP 단가 : ${kppRate ? fmt(kppRate) : '-'}원/회${selLabel ? `(${selLabel})` : ''}${hasFreq ? `
+▶ 월 예상 : ${fmt(kppMonthly)}원 (월 ${freq}회)` : ''}${existRate > 0 && hasFreq ? `
 ▶ 기존 대비 : ${savings >= 0 ? '-' : '+'}${fmt(Math.abs(savings))}원/월 (${savingsPct}%)
-▶ 연간 절감 : ${fmt(savings * 12)}원` : ''}${scanQuoteText}
+▶ 연간 절감 : ${fmt(savings * 12)}원` : ''}
 ━━━━━━━━━━━━━━
 유효 30일`;
+  })();
 
   // ── 업무일지 자동 생성 ──
   const parseNum = v => parseFloat(String(v || '').replace(/[^\d.]/g, '')) || 0;
@@ -748,9 +780,9 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
 
   const cargoTypeText = f.cargoType.length > 0 ? f.cargoType.join(',') + ' 포장' : '';
 
-  const routeText = f.dep && f.dest
+  const routeText = tab === 'scan' ? '' : (f.dep && f.dest
     ? `${f.dep} → ${f.dest}, ${TONS[f.tonIdx]} ${bodyText}(${temp})`
-    : '';
+    : '');
 
   const volRev = [
     yearlyCars > 0 && `물동량 : ${yearlyCars} 대/년`,
@@ -862,10 +894,11 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
     const withUnit = (v, unit) => v && !/[가-힣A-Za-z]/.test(String(v).trim()) ? `${String(v).trim()} ${unit}` : v;
     const cargoPdfText = [f.pallet, f.twoTier && '2단적재', ...f.cargoType].filter(Boolean).join(', ');
 
-    const scanMains = (tab === 'scan' && manualKPP) ? manualKPP.rows.filter(r => r.isMain && r.existRate > 0) : [];
+    // 주요구간: existRate 조건 제거 → 현단가 없어도 주요구간 기준 사용
+    const scanMains = (tab === 'scan' && manualKPP) ? manualKPP.rows.filter(r => r.isMain) : [];
     const scanRouteText = scanMains.length > 0
       ? scanMains.map(r => `${effScanDep} → ${r.지역}`).join(' / ')
-      : `${f.dep} → ${f.dest}`;
+      : effScanDep && manualKPP ? `${effScanDep} 출발` : `${f.dep} → ${f.dest}`;
     const scanTonText = (() => {
       if (!scanMains.length) return TONS[f.tonIdx];
       const tons = scanMains.map(r => r.톤);
@@ -873,7 +906,7 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       return unique.join(' / ');
     })();
     const condRows = [
-      ['운송 구간', tab === 'scan' && scanMains.length ? scanRouteText : `${f.dep} → ${f.dest}`],
+      ['운송 구간', tab === 'scan' ? scanRouteText : `${f.dep} → ${f.dest}`],
       ['차량 톤수', tab === 'scan' && scanMains.length ? scanTonText : TONS[f.tonIdx]],
       ['차량 형태', bodyText],
       ['화물/포장/온도', `${cargoPdfText} / ${temp}`],
@@ -900,6 +933,7 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       const sY = rows.reduce((s, r) => s + mAmt2(r.rateYt, r.count), 0);
       const sB = rows.reduce((s, r) => s + mAmt2(r.rateBg, r.count), 0);
       const sE = rows.reduce((s, r) => s + mAmt2(r.existRate, r.count), 0);
+      const hasExist = sE > 0; // 현단가 입력 여부
       const cntY = rows.filter(r => r.rateYt > 0).length;
       const cntB = rows.filter(r => r.rateBg > 0).length;
       const yF = cntY !== cntB ? cntY > cntB : (sY > 0 && sB > 0 ? sY <= sB : sY > 0);
@@ -912,25 +946,34 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
         const diffStr = diff !== null ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '—';
         const diffClr = diff === null ? '#64748b' : diff < 0 ? '#dc2626' : '#15803d';
         const badge = r.isMain ? ' <span style="background:#0c447c;color:#fff;font-size:7px;padding:1px 3px;border-radius:2px;font-weight:700;vertical-align:middle">주</span>' : '';
-        const sub = `${r.톤}/${cnt > 0 ? cnt + '회' : '-'}`;
-        return `<tr>
+        const sub = `${r.톤}${cnt > 0 ? '/' + cnt + '회' : ''}`;
+        if (hasExist) {
+          return `<tr>
 <td>${r.지역}${badge} <span style="color:#6b7280;font-size:9px">${sub}</span></td>
 <td class="r">${eAmt ? fmt(eAmt) : '-'}</td>
 <td class="r" style="color:#0c3460;font-weight:700">${c1Amt ? fmt(c1Amt) : '-'}</td>
 <td class="r" style="color:${diffClr};font-weight:700">${diffStr}</td>
 </tr>`;
+        } else {
+          return `<tr>
+<td>${r.지역}${badge} <span style="color:#6b7280;font-size:9px">${sub}</span></td>
+<td class="r" style="color:#0c3460;font-weight:700">${c1Amt ? fmt(c1Amt) : '-'}</td>
+</tr>`;
+        }
       }).join('');
       const totDiff = c1.sum && sE ? c1.sum - sE : null;
       const totBg = totDiff === null ? '#f1f5f9' : totDiff < 0 ? '#fef2f2' : '#f0fdf4';
       const totClr = totDiff === null ? '#374151' : totDiff < 0 ? '#dc2626' : '#15803d';
       const totDiffStr = totDiff !== null ? `${totDiff > 0 ? '+' : ''}${fmt(totDiff)}` : '—';
-      const totRow = `<tr style="font-weight:700;background:${totBg}"><td>합계</td><td class="r" style="color:#374151">${fmt(sE)}</td><td class="r" style="color:${totClr}">${fmt(c1.sum)}</td><td class="r" style="color:${totClr}">${totDiffStr}</td></tr>`;
+      const totRow = hasExist
+        ? `<tr style="font-weight:700;background:${totBg}"><td>합계</td><td class="r" style="color:#374151">${fmt(sE)}</td><td class="r" style="color:${totClr}">${fmt(c1.sum)}</td><td class="r" style="color:${totClr}">${totDiffStr}</td></tr>`
+        : `<tr style="font-weight:700;background:#f1f5f9"><td>합계</td><td class="r" style="color:#0c3460">${fmt(c1.sum)}</td></tr>`;
       const annDiff = totDiff !== null ? totDiff * 12 : null;
       const annPct = annDiff !== null && sE > 0 ? Math.round(Math.abs(annDiff) / (sE * 12) * 100) : null;
       const annClr = annDiff === null ? '#64748b' : annDiff < 0 ? '#dc2626' : '#15803d';
       const annStr = annDiff !== null ? `${annDiff < 0 ? '▼' : '▲'} ${fmt(Math.abs(annDiff))}원${annPct !== null ? ` (${annPct}%)` : ''}` : '—';
-      const annRow = annDiff !== null ? `<tr style="font-weight:700;background:${totBg}"><td>연간 예상 절감</td><td colspan="3" class="r" style="color:${annClr}">${annStr}</td></tr>` : '';
-      return { label: c1.label, rows: dataRows + totRow + annRow };
+      const annRow = annDiff !== null ? `<tr style="font-weight:700;background:${totBg}"><td>연간 예상 절감</td><td colspan="${hasExist ? 3 : 1}" class="r" style="color:${annClr}">${annStr}</td></tr>` : '';
+      return { label: c1.label, rows: dataRows + totRow + annRow, hasExist };
     })() : null;
     const scanSecRows = scanSecMeta ? scanSecMeta.rows : '';
     const nRoi = effRoiRows ? 1 : 0, nScan = scanSecRows ? 1 : 0;
@@ -940,8 +983,8 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
     const kpiHtml = (kppRate && tab !== 'scan') ? `
 <div class="kpi">
   <div class="b hl"><div class="lbl">KPP 제안 단가</div><div class="v">${fmt(kppRate)}<small>원/회</small></div></div>
-  ${freq > 0 ? `<div class="b"><div class="lbl">월 예상 비용</div><div class="v">${fmt(kppMonthly)}<small>원</small></div></div>` : ''}
-  ${existRate > 0 ? `<div class="b ${isDown ? 'rd' : 'g'}"><div class="lbl">연간 절감 효과</div><div class="v" style="color:${rowClr}">${arrow} ${fmt(Math.abs(savings * 12))}<small style="color:${rowClr}">원</small></div></div>` : ''}
+  ${hasFreq ? `<div class="b"><div class="lbl">월 예상 비용</div><div class="v">${fmt(kppMonthly)}<small>원</small></div></div>` : ''}
+  ${existRate > 0 && hasFreq ? `<div class="b ${isDown ? 'rd' : 'g'}"><div class="lbl">연간 절감 효과</div><div class="v" style="color:${rowClr}">${arrow} ${fmt(Math.abs(savings * 12))}<small style="color:${rowClr}">원</small></div></div>` : ''}
 </div>` : '';
 
     const pdfHtml = `<!DOCTYPE html>
@@ -995,7 +1038,9 @@ ${effRoiRows ? `<div class="sec">${effRoiTitle}</div>
 <table><tr><th>구분</th><th>금액</th></tr>${effRoiRows}</table>` : ''}
 
 ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합계 비교)</div>
-<table><tr><th>지역</th><th>현단가</th><th>KPP 최저단가</th><th>차이</th></tr>${scanSecRows}</table>` : ''}
+${scanSecMeta && !scanSecMeta.hasExist
+  ? `<table><tr><th>지역</th><th>KPP 최저단가</th></tr>${scanSecRows}</table>`
+  : `<table><tr><th>지역</th><th>현단가</th><th>KPP 최저단가</th><th>차이</th></tr>${scanSecRows}</table>`}` : ''}
 
 <div class="sec">${secNoticeNo}. 안내 사항</div>
 <table>${noticeRows}</table>
@@ -1124,7 +1169,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
       </div>
 
       <div style={{ display: 'flex', borderBottom: '0.5px solid #e5e7eb', background: '#fff', position: 'sticky', top: 0, zIndex: 50 }}>
-        {[['quote', '견적 산출'], ['scan', '운임 분석']].map(([id, label]) => (
+        {[['quote', '기본 견적'], ['scan', '운임 비교']].map(([id, label]) => (
           <button type="button" key={id} onClick={() => setTab(id)} style={{
             flex: 1, padding: '14px 0', fontSize: 14, fontWeight: tab === id ? 600 : 400, textAlign: 'center',
             color: tab === id ? NAVY : '#6b7280',
@@ -1170,7 +1215,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4, marginBottom: 8 }}>운송사를 선택하세요 (선택한 단가 기준으로 출력됩니다)</div>
+                  <div style={{ fontSize: 11, marginTop: 4, marginBottom: 8 }}><span style={{ color: '#ff4d4d', fontWeight: 700 }}>운송사를 선택하세요</span><span style={{ color: 'rgba(255,255,255,0.8)' }}> (선택한 단가 기준으로 출력됩니다)</span></div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {carriers.map(c => (
                       <button key={c.id} onClick={() => setSelCarrier(c.id)}
@@ -1294,14 +1339,14 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
               {openCust && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={lbl}>고객 코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수 · 6자리</span>)</label>
-                      <input style={{ ...inp, borderColor: f.code && f.code.length !== 6 ? '#dc2626' : '' }} placeholder="예: 123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
-                      {f.code && f.code.length !== 6 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>6자리를 입력해주세요 ({f.code.length}/6)</div>}
+                    <div style={{ flex: '0 0 84px' }}>
+                      <label style={lbl}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
+                      <input style={{ ...inp, borderColor: f.code && f.code.length !== 6 ? '#dc2626' : '' }} placeholder="123456" inputMode="numeric" maxLength={6} value={f.code} onChange={e => upd('code', e.target.value.replace(/[^\d]/g, '').slice(0, 6))} />
+                      {f.code && f.code.length !== 6 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>{f.code.length}/6</div>}
                     </div>
-                    <div style={{ flex: 1.5 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                      <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
+                      <input style={inp} placeholder="예 : (주) 영남" value={f.company} onChange={e => upd('company', e.target.value)} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -1943,20 +1988,20 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                   {/* 출발지 — ORIGIN 박스 (소형) */}
                   <div style={{ position: 'relative', background: '#0c3460', borderRadius: 10, padding: '6px 22px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <div style={{ fontSize: 7, fontWeight: 700, color: '#93c5fd', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 1 }}>ORIGIN</div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{effScanDep}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{effScanDep}</div>
                     <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={effScanDep} onChange={e => setScanDep(e.target.value)}>
                       {DEPARTURES.map(d => <option key={d}>{d}</option>)}
                     </select>
                   </div>
                   {/* 코드 */}
-                  <div style={{ flex: '0 0 72px' }}>
+                  <div style={{ flex: '0 0 112px' }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
-                    <input style={{ ...inp, color: '#0c447c', fontWeight: 700 }} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+                    <input style={{ ...inp }} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
                   </div>
                   {/* 고객사명 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                    <input style={{ ...inp, color: '#0c447c', fontWeight: 700 }} placeholder="(주)민승" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
+                    <input style={{ ...inp }} placeholder="예 : (주) 영남" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
                   </div>
                 </div>
 
@@ -1964,8 +2009,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                 {(() => {
                   const r = manualRows;
                   return [
-                    { label: '주요 구간', indices: [0, ...(r[0].dest && r[0].rate ? [1] : [])] },
-                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest && r[2].rate ? [3] : []), ...(r[2].dest && r[2].rate && r[3].dest && r[3].rate ? [4] : [])] },
+                    { label: '주요 구간', indices: [0, ...(r[0].dest ? [1] : [])] },
+                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest ? [3] : []), ...(r[2].dest && r[3].dest ? [4] : [])] },
                   ];
                 })().map(({ label, indices }) => (
                   <div key={label} style={card}>
@@ -1992,20 +2037,29 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                             <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (!row.region || row.dest) ? 2 : 0 }}
                               value={row.region} onChange={e => {
                                 const v = e.target.value;
+                                // 종속 행: 앞칸이 비면 뒷칸 전부 초기화 (조건 없이)
+                                const DEPS = { 0: [1], 1: [], 2: [3, 4], 3: [4], 4: [] };
+                                const empty = () => ({ region: '', dest: '', rate: '', count: '', tonIdx: 3 });
                                 if (v === '__RESET__') {
                                   setManualRows(prev => {
-                                    const next = prev.map(r => ({...r}));
-                                    if (i === 3 && next[4].dest) {
-                                      next[3] = {...next[4]};
-                                      next[4] = { region: '', dest: '', rate: '', count: '', tonIdx: 3 };
+                                    const next = prev.map(r => ({ ...r }));
+                                    if (i === 3 && next[4].dest) {        // 나머지 중간행 삭제 → 다음행 끌어올림
+                                      next[3] = { ...next[4] };
+                                      next[4] = empty();
                                     } else {
-                                      next[i] = { region: '', dest: '', rate: '', count: '', tonIdx: 3 };
+                                      next[i] = empty();
+                                      (DEPS[i] || []).forEach(d => { next[d] = empty(); }); // 종속 행 무조건 초기화
                                     }
                                     return next;
                                   });
                                   return;
                                 }
-                                updateManualRow(i, 'region', v); updateManualRow(i, 'dest', '');
+                                // 지역 변경 → 해당 행 초기화 + 종속 행 무조건 초기화
+                                setManualRows(prev => {
+                                  const next = prev.map((r, idx) => idx !== i ? { ...r } : { ...r, region: v, dest: '', rate: '', count: '', tonIdx: 3 });
+                                  (DEPS[i] || []).forEach(d => { next[d] = empty(); });
+                                  return next;
+                                });
                               }}>
                               <option value="">지역 선택</option>
                               {Object.keys(REGIONS).map(r => <option key={r}>{r}</option>)}
@@ -2016,7 +2070,13 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                               <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (row.region && !row.dest) ? 3 : 0 }}
                                 value={row.dest} onChange={e => {
                                   const nd = e.target.value;
-                                  if (nd && nd !== row.dest) setManualRows(prev => prev.map((r, idx) => idx !== i ? r : { ...r, dest: nd, rate: '', count: '', tonIdx: 3 }));
+                                  if (nd && nd !== row.dest) setManualRows(prev => {
+                                    const DEPS2 = { 0: [1], 1: [], 2: [3, 4], 3: [4], 4: [] };
+                                    const emp = () => ({ region: '', dest: '', rate: '', count: '', tonIdx: 3 });
+                                    const next = prev.map((r, idx) => idx !== i ? { ...r } : { ...r, dest: nd, rate: '', count: '', tonIdx: 3 });
+                                    (DEPS2[i] || []).forEach(d => { next[d] = emp(); });
+                                    return next;
+                                  });
                                   else updateManualRow(i, 'dest', nd);
                                 }}>
                                 <option value="">시·군 선택</option>
@@ -2213,6 +2273,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                         <div style={{ fontSize: 13, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{fmtK(col2.sum)}</div>
                         <div style={{ fontSize: 13, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{fmtK(col3.sum)}</div>
                         {(() => {
+                          if (!sumExist) return <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>;
                           const totalDiff = sumExist - col2.sum;
                           if (!totalDiff) return <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>;
                           const cheaper = totalDiff > 0;
