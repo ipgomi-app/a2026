@@ -779,10 +779,17 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
 
   // ── 업무일지 자동 생성 ──
   const parseNum = v => parseFloat(String(v || '').replace(/[^\d.]/g, '')) || 0;
-  const yearlyCars = parseNum(f.onceQty) > 0
-    ? Math.round(parseNum(f.monthVol) * 12 / parseNum(f.onceQty))
+  // 운임비교 탭: 입력된 횟수·단가 기준으로 물동량/예상매출 계산 (기본견적 값 무시)
+  const scanYearlyCars = (tab === 'scan' && manualKPP)
+    ? manualKPP.rows.reduce((s, r) => s + (r.count > 0 ? r.count * 12 : 0), 0)
     : 0;
-  const expectedRevenue = yearlyCars * (kppRate || 0);
+  const scanExpectedRevenue = (tab === 'scan' && manualKPP)
+    ? manualKPP.rows.reduce((s, r) => s + (r.kppRate && r.count > 0 ? r.kppRate * r.count * 12 : 0), 0)
+    : 0;
+  const yearlyCars = tab === 'scan'
+    ? scanYearlyCars
+    : (parseNum(f.onceQty) > 0 ? Math.round(parseNum(f.monthVol) * 12 / parseNum(f.onceQty)) : 0);
+  const expectedRevenue = tab === 'scan' ? scanExpectedRevenue : yearlyCars * (kppRate || 0);
   const revenueEok = expectedRevenue > 0 ? (expectedRevenue / 1e8).toFixed(2) : null;
 
   const cargoTypeText = f.cargoType.length > 0 ? f.cargoType.join(',') + ' 포장' : '';
