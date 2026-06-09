@@ -1973,7 +1973,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
                     </select>
                   </div>
                   {/* 코드 */}
-                  <div style={{ flex: '0 0 96px' }}>
+                  <div style={{ flex: '0 0 112px' }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>코드 (<span style={{ color: '#dc2626', fontWeight: 600 }}>6자리</span>)</label>
                     <input style={{ ...inp }} placeholder="123456" inputMode="numeric" maxLength={6} value={effScanCode} onChange={e => setScanCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
                   </div>
