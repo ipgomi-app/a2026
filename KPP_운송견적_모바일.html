@@ -64,6 +64,10 @@
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => { reg.update(); }).catch(() => {});
+      // SW 업데이트 시 자동 새로고침
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data && e.data.type === 'SW_UPDATED') window.location.reload();
+      });
     });
   }
 </script>
