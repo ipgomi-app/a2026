@@ -2232,6 +2232,7 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                         <div style={{ fontSize: 13, textAlign: 'right', fontWeight: 700, color: col2.sum ? '#dc2626' : '#ccc' }}>{fmtK(col2.sum)}</div>
                         <div style={{ fontSize: 13, textAlign: 'right', fontWeight: 700, color: col3.sum ? NAVY : '#ccc' }}>{fmtK(col3.sum)}</div>
                         {(() => {
+                          if (!sumExist) return <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>;
                           const totalDiff = sumExist - col2.sum;
                           if (!totalDiff) return <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>;
                           const cheaper = totalDiff > 0;
