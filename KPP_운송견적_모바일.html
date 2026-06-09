@@ -2003,20 +2003,28 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                             <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: (!row.region || row.dest) ? 2 : 0 }}
                               value={row.region} onChange={e => {
                                 const v = e.target.value;
+                                const DEPS = { 0: [1], 2: [3, 4], 3: [4] }; // 종속행(앞칸 비면 같이 무효)
+                                const empty = () => ({ region: '', dest: '', rate: '', count: '', tonIdx: 3 });
                                 if (v === '__RESET__') {
                                   setManualRows(prev => {
-                                    const next = prev.map(r => ({...r}));
-                                    if (i === 3 && next[4].dest) {
-                                      next[3] = {...next[4]};
-                                      next[4] = { region: '', dest: '', rate: '', count: '', tonIdx: 3 };
+                                    const next = prev.map(r => ({ ...r }));
+                                    if (i === 3 && next[4].dest) {        // 나머지 중간행 삭제 → 다음행 끌어올림
+                                      next[3] = { ...next[4] };
+                                      next[4] = empty();
                                     } else {
-                                      next[i] = { region: '', dest: '', rate: '', count: '', tonIdx: 3 };
+                                      next[i] = empty();
                                     }
+                                    (DEPS[i] || []).forEach(d => { if (!next[d].dest) next[d] = empty(); }); // 종속 고아행 정리
                                     return next;
                                   });
                                   return;
                                 }
-                                updateManualRow(i, 'region', v); updateManualRow(i, 'dest', '');
+                                // 지역 변경 → 해당 행 도착지·단가·횟수 초기화 + 종속 고아행 정리
+                                setManualRows(prev => {
+                                  const next = prev.map((r, idx) => idx !== i ? { ...r } : { ...r, region: v, dest: '', rate: '', count: '', tonIdx: 3 });
+                                  (DEPS[i] || []).forEach(d => { if (!next[d].dest) next[d] = empty(); });
+                                  return next;
+                                });
                               }}>
                               <option value="">지역 선택</option>
                               {Object.keys(REGIONS).map(r => <option key={r}>{r}</option>)}
