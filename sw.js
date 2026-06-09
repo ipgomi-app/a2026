@@ -14,8 +14,8 @@ const ASSETS = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => Promise.all(ASSETS.map(u => c.add(u).catch(() => null)))) // 일부 CDN 실패해도 설치 진행
-      .then(() => self.skipWaiting())
+      .then(c => Promise.all(ASSETS.map(u => c.add(u).catch(() => null))))
+      .then(() => self.skipWaiting()) // 대기 없이 즉시 활성화
   );
 });
 

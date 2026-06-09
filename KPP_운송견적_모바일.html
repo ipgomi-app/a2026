@@ -63,7 +63,7 @@
   // PWA 서비스워커 등록 (file:// 로컬 실행 시엔 건너뜀)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => { reg.update(); }).catch(() => {});
     });
   }
 </script>
