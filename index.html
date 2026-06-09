@@ -336,11 +336,11 @@ function KPPTransportApp() {
     const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const company = (tab === 'scan' ? effScanCompany : f.company).trim();
     const code = (tab === 'scan' ? effScanCode : f.code).trim();
-    // 같은 코드의 기존 견적 → 갱신 확인 (scan탭은 doScanSave가 이미 저장했으므로 확인 없이 덮어쓰기)
+    // 같은 코드의 기존 견적 → 갱신 확인
     const idx = code ? list.findIndex(x => (x.code || '').trim() === code) : -1;
-    if (idx !== -1 && action !== 'update' && tab !== 'scan') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
-    // 코드 유사(편집거리≤2) 또는 업체명 유사(앞 2자리 일치) → 코드 오입력 가능성 안내 (scan탭은 이미 검증됨)
-    if (idx === -1 && action !== 'force' && tab !== 'scan') {
+    if (idx !== -1 && action !== 'update') { setUpdateWhen(formatWhen(list[idx].ts)); setShowUpdateConfirm(true); return; }
+    // 코드 유사(편집거리≤2) 또는 업체명 유사(앞 2자리 일치) → 코드 오입력 가능성 안내
+    if (idx === -1 && action !== 'force') {
       const f2 = company.slice(0, 2);
       let codeMatch = null; // 코드 유사
       let nameMatch = null; // 업체명 유사
@@ -1142,13 +1142,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
     then();
   };
   const doScanSave = () => {
-    const now = new Date(); const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const list = readSaved();
-    const code = effScanCode.trim().toUpperCase(); const company = effScanCompany.trim();
-    const idx = list.findIndex(x => x.code === code && x.type === 'scan');
-    const rec = { id: idx !== -1 ? list[idx].id : Date.now(), company, code, type: 'scan', savedAt: now.toLocaleDateString('ko-KR'), ts: now.getTime(), ym, scan: { manualRows, scanDep, scanTonIdx } };
-    if (idx !== -1) list[idx] = rec; else list.push(rec);
-    writeSaved(list);
+    // localStorage 저장은 doSave()에서 처리 — 여기서는 저장방식 시트만 열기
     setSalesGrade(''); setCReason('단가문제'); setAccompany('');
     setShowSaveSheet(true);
   };
