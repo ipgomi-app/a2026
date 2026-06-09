@@ -1984,7 +1984,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
                   {/* 출발지 — ORIGIN 박스 (소형) */}
                   <div style={{ position: 'relative', background: '#0c3460', borderRadius: 10, padding: '6px 22px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <div style={{ fontSize: 7, fontWeight: 700, color: '#93c5fd', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 1 }}>ORIGIN</div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{effScanDep}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>{effScanDep}</div>
                     <select style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} value={effScanDep} onChange={e => setScanDep(e.target.value)}>
                       {DEPARTURES.map(d => <option key={d}>{d}</option>)}
                     </select>

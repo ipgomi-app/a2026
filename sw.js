@@ -1,5 +1,5 @@
 // KPP 운송견적 PWA 서비스워커
-const CACHE = 'kpp-quote-v2';
+const CACHE = 'kpp-quote-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -32,7 +32,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Apps Script(통계)는 항상 네트워크 — 캐시하지 않음
   if (url.hostname.indexOf('script.google') !== -1) return;
-  const isDoc = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('manifest.json');
+  const isDoc = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('manifest.json') || url.pathname.endsWith('KPP_%EC%9A%B4%EC%86%A1%EA%B2%AC%EC%A0%81_%EB%AA%A8%EB%B0%94%EC%9D%BC.html') || url.pathname.includes('운송견적_모바일');
   if (isDoc) {
     // HTML/매니페스트: 네트워크 우선(재배포 즉시 반영), 오프라인 시 캐시
     e.respondWith(
