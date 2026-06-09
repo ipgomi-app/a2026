@@ -873,10 +873,11 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
     const withUnit = (v, unit) => v && !/[가-힣A-Za-z]/.test(String(v).trim()) ? `${String(v).trim()} ${unit}` : v;
     const cargoPdfText = [f.pallet, f.twoTier && '2단적재', ...f.cargoType].filter(Boolean).join(', ');
 
-    const scanMains = (tab === 'scan' && manualKPP) ? manualKPP.rows.filter(r => r.isMain && r.existRate > 0) : [];
+    // 주요구간: existRate 조건 제거 → 현단가 없어도 주요구간 기준 사용
+    const scanMains = (tab === 'scan' && manualKPP) ? manualKPP.rows.filter(r => r.isMain) : [];
     const scanRouteText = scanMains.length > 0
       ? scanMains.map(r => `${effScanDep} → ${r.지역}`).join(' / ')
-      : `${f.dep} → ${f.dest}`;
+      : effScanDep && manualKPP ? `${effScanDep} 출발` : `${f.dep} → ${f.dest}`;
     const scanTonText = (() => {
       if (!scanMains.length) return TONS[f.tonIdx];
       const tons = scanMains.map(r => r.톤);
@@ -884,7 +885,7 @@ ${ann !== null ? `<tr style="font-weight:bold;background:${bg2};color:${cl2}"><t
       return unique.join(' / ');
     })();
     const condRows = [
-      ['운송 구간', tab === 'scan' && scanMains.length ? scanRouteText : `${f.dep} → ${f.dest}`],
+      ['운송 구간', tab === 'scan' ? scanRouteText : `${f.dep} → ${f.dest}`],
       ['차량 톤수', tab === 'scan' && scanMains.length ? scanTonText : TONS[f.tonIdx]],
       ['차량 형태', bodyText],
       ['화물/포장/온도', `${cargoPdfText} / ${temp}`],
