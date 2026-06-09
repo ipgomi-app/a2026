@@ -828,7 +828,7 @@ ${manualKPP.rows.map(r => `· ${r.지역} : 현재 ${r.existRate ? fmt(r.existRa
 
   const logText = [
     'SCM 운송영업',
-    `1. 업체명 : ${f.company || ''}`,
+    `1. 업체명 : ${tab === 'scan' ? (effScanCompany || '') : (f.company || '')}`,
     '2. 면담자 : ',
     '3. 업무내용',
     '  - 운송 제안',
