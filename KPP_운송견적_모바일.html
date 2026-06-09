@@ -1342,7 +1342,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <label style={lbl}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                      <input style={inp} placeholder="예: (주)민승" value={f.company} onChange={e => upd('company', e.target.value)} />
+                      <input style={inp} placeholder="예 : (주) 영남" value={f.company} onChange={e => upd('company', e.target.value)} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -1997,7 +1997,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
                   {/* 고객사명 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <label style={{ ...lbl, whiteSpace: 'nowrap' }}>고객사명 (<span style={{ color: '#dc2626', fontWeight: 600 }}>필수</span>)</label>
-                    <input style={{ ...inp }} placeholder="(주)민승" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
+                    <input style={{ ...inp }} placeholder="예 : (주) 영남" value={effScanCompany} onChange={e => setScanCompany(e.target.value)} />
                   </div>
                 </div>
 
