@@ -672,15 +672,22 @@ function KPPTransportApp() {
 
   // ── 운임 분석(scan) 데이터 — 출력 빌더에서 사용하므로 위에서 계산 ──
   const manualKPP = useMemo(() => {
-    const rows = manualRows
-      .map((r, origIdx) => ({ ...r, origIdx }))
-      .filter(r => r.dest && Number(r.rate) > 0)
+    // 입력칸과 동일한 연쇄 규칙으로 활성 행만 산출 (앞칸 지역 선택 시 다음칸 노출)
+    const mr = manualRows;
+    const active = [0];
+    if (mr[0] && mr[0].dest) active.push(1);
+    active.push(2);
+    if (mr[2] && mr[2].dest) active.push(3);
+    if (mr[2] && mr[2].dest && mr[3] && mr[3].dest) active.push(4);
+    const rows = active
+      .map(origIdx => ({ ...manualRows[origIdx], origIdx }))
+      .filter(r => r.dest)
       .map(r => {
         const isMain = r.origIdx < 2;
         const tIdx = r.tonIdx != null ? Number(r.tonIdx) : scanTonIdx; // 행별 톤수
         const low = calcLowest(effScanDep, r.dest, tIdx, margin);
         const kppRate = low.rate;
-        const existRate = Number(r.rate);
+        const existRate = Number(r.rate) || 0;
         const save = kppRate && existRate ? existRate - kppRate : null;
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
         const rateYt = calcRate(effScanDep, r.dest, tIdx, margin);
@@ -1968,8 +1975,8 @@ ${scanSecRows ? `<div class="sec">${secScanNo}. 운임 분석 (입력구간 합�
                 {(() => {
                   const r = manualRows;
                   return [
-                    { label: '주요 구간', indices: [0, ...(r[0].dest && r[0].rate ? [1] : [])] },
-                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest && r[2].rate ? [3] : []), ...(r[2].dest && r[2].rate && r[3].dest && r[3].rate ? [4] : [])] },
+                    { label: '주요 구간', indices: [0, ...(r[0].dest ? [1] : [])] },
+                    { label: '나머지 구간(선택)', indices: [2, ...(r[2].dest ? [3] : []), ...(r[2].dest && r[3].dest ? [4] : [])] },
                   ];
                 })().map(({ label, indices }) => (
                   <div key={label} style={card}>
