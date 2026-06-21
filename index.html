@@ -664,7 +664,7 @@ function KPPTransportApp() {
     { id: 'YT', label: 'Y', rate: isRefrig ? null : rateY },
     { id: '바로고', label: 'B', rate: isRefrig ? null : rateB },
     { id: 'KLP', label: 'K', rate: rateK },
-  ].filter(c => c.rate != null);
+  ].filter(c => c.rate != null).sort((a, b) => a.rate - b.rate).slice(0, 2);
   const selValid = selCarrier && carriers.some(c => c.id === selCarrier);
   const effCarrier = selValid ? selCarrier : null;
   const kppRate = effCarrier === 'YT' ? rateY : effCarrier === '바로고' ? rateB : effCarrier === 'KLP' ? rateK : null;
@@ -722,9 +722,13 @@ function KPPTransportApp() {
         const pct = save !== null && existRate > 0 ? Math.round(save / existRate * 100) : null;
         const rateYt = calcRate(effScanDep, r.dest, tIdx, margin);
         const rateBg = calcBarogo(effScanDep, r.dest, tIdx, margin);
+        const rateKlp = calcKlp(effScanDep, r.dest, tIdx, false, margin);
+        // 3개 중 최저단가를 kppRate로 사용
+        const allLow = [rateYt, rateBg, rateKlp].filter(v => v != null);
+        const bestRate = allLow.length ? Math.min(...allLow) : null;
         const count = Number(r.count) || 0;
         const existMonthly = existRate && count ? existRate * count : null;
-        return { 지역: r.dest, 톤: TONS[tIdx], existRate, dest: r.dest, kppRate, carrier: low.carrier, save, pct, rateYt, rateBg, count, existMonthly, isMain };
+        return { 지역: r.dest, 톤: TONS[tIdx], existRate, dest: r.dest, kppRate: bestRate, carrier: low.carrier, save: bestRate && existRate ? existRate - bestRate : null, pct: bestRate && existRate && existRate > 0 ? Math.round((existRate - bestRate) / existRate * 100) : null, rateYt, rateBg, rateKlp, count, existMonthly, isMain };
       });
     return rows.length > 0 ? { type: 'table', rows, dep: effScanDep, 업체명: '직접 입력' } : null;
   }, [manualRows, scanDep, f.dep, scanTonIdx, margin]);
@@ -2250,12 +2254,19 @@ ${scanSecMeta && !scanSecMeta.hasExist
                 const fmtK = v => v ? Math.round(v / 1000).toLocaleString() : '—';
                 const sumY = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateYt, r.count), 0);
                 const sumB = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateBg, r.count), 0);
+                const sumK = manualKPP.rows.reduce((s, r) => s + mAmt(r.rateKlp, r.count), 0);
                 const sumExist = manualKPP.rows.reduce((s, r) => s + mAmt(r.existRate, r.count), 0);
                 const cntY = manualKPP.rows.filter(r => r.rateYt > 0).length;
                 const cntB = manualKPP.rows.filter(r => r.rateBg > 0).length;
-                const yFirst = cntY !== cntB ? cntY > cntB : (sumY > 0 && sumB > 0 ? sumY <= sumB : sumY > 0);
-                const col2 = { label: yFirst ? 'Y' : 'B', key: yFirst ? 'rateYt' : 'rateBg', sum: yFirst ? sumY : sumB };
-                const col3 = { label: yFirst ? 'B' : 'Y', key: yFirst ? 'rateBg' : 'rateYt', sum: yFirst ? sumB : sumY };
+                const cntK = manualKPP.rows.filter(r => r.rateKlp > 0).length;
+                // Y/B/K 중 단가 있는 것만 정렬, 저렴한 순 2개 선택
+                const sortedCols = [
+                  { label: 'Y', key: 'rateYt', sum: sumY, cnt: cntY },
+                  { label: 'B', key: 'rateBg', sum: sumB, cnt: cntB },
+                  { label: 'K', key: 'rateKlp', sum: sumK, cnt: cntK },
+                ].filter(c => c.cnt > 0).sort((a, b) => (a.sum || Infinity) - (b.sum || Infinity));
+                const col2 = sortedCols[0] || { label: 'Y', key: 'rateYt', sum: sumY, cnt: cntY };
+                const col3 = sortedCols[1] || { label: 'B', key: 'rateBg', sum: sumB, cnt: cntB };
                 const totalPct = sumExist > 0 && col2.sum > 0 ? Math.round((sumExist - col2.sum) / sumExist * 100) : null;
                 const GCOLS = '0.75fr 0.85fr 0.85fr 0.85fr 0.65fr'; // 지역|현단가|col2|col3|차이
                 return (
