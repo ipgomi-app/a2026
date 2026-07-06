@@ -1,5 +1,5 @@
 // KPP 운송견적 PWA 서비스워커
-const CACHE = 'kpp-quote-v4';
+const CACHE = 'kpp-quote-v5';
 const ASSETS = [
   './',
   './index.html',
