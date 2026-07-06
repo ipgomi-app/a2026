@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html><!-- v20260609 -->
+﻿<!DOCTYPE html><!-- v20260706-followup -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -250,6 +250,7 @@ function KPPTransportApp() {
   const [accompany, setAccompany] = useState(''); // 동행: ''(없음)/'need'(필요★)/'done'(완료●)
   const [salesGrade, setSalesGrade] = useState(''); // 영업 등급 A/B/C
   const [cReason, setCReason] = useState('단가문제'); // C등급 사유
+  const [followUp, setFollowUp] = useState(''); // 다음 진행상황/후속조치 메모
   const [sheetRows, setSheetRows] = useState(null); // 공용 시트 통계 (null=미로드)
   const [sheetStatus, setSheetStatus] = useState('idle'); // idle|loading|ok|err
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -392,7 +393,7 @@ function KPPTransportApp() {
       savedAt: now.toLocaleDateString('ko-KR'), ts: now.getTime(), ym,
       mgr: { name: mgrName, branch: info.branch || '', region: info.region || '' },
       carrier: effCarrier || '', amount,
-      sales: { grade: salesGrade, reason: salesGrade === 'C' ? cReason : '', accompany },
+      sales: { grade: salesGrade, reason: salesGrade === 'C' ? cReason : '', accompany, followUp: followUp.trim() },
       data: f, scan: { manualRows, scanDep, scanTonIdx }
     };
     if (idx !== -1) list[idx] = rec; else list.push(rec); // 코드 일치 시 갱신(덮어쓰기), 카운트는 1건 유지
@@ -402,7 +403,7 @@ function KPPTransportApp() {
     setShowUpdateConfirm(false);
     setShowCodeCheck(false);
     setShowSaveConfirm(false);
-    setSalesGrade(''); setCReason('단가문제'); setAccompany('');
+    setSalesGrade(''); setCReason('단가문제'); setAccompany(''); setFollowUp('');
     setShowSaveSheet(true);
     showToast(idx !== -1 ? '갱신되었습니다' : '저장되었습니다');
   };
@@ -1171,7 +1172,7 @@ ${scanSecMeta && !scanSecMeta.hasExist
   };
   const doScanSave = () => {
     // localStorage 저장은 doSave()에서 처리 — 여기서는 저장방식 시트만 열기
-    setSalesGrade(''); setCReason('단가문제'); setAccompany('');
+    setSalesGrade(''); setCReason('단가문제'); setAccompany(''); setFollowUp('');
     setShowSaveSheet(true);
   };
   const makeActionBar = (canO, guardFn, saveFn) => (
@@ -1769,6 +1770,16 @@ ${scanSecMeta && !scanSecMeta.hasExist
                     </select>
                   </div>
                 )}
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 5 }}>다음 진행상황 / 후속조치</label>
+                  <textarea
+                    value={followUp}
+                    onChange={e => setFollowUp(e.target.value)}
+                    placeholder="예: 다음주 재방문, 물류팀 단가 재확인, 샘플 출고 후 재견적"
+                    rows={3}
+                    style={{ ...inp, resize: 'vertical', minHeight: 72, lineHeight: 1.45, border: '1px solid #d1d5db', borderRadius: 9, padding: '10px 12px', color: '#111', background: '#fff' }}
+                  />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
@@ -1875,7 +1886,8 @@ ${scanSecMeta && !scanSecMeta.hasExist
               />
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 {(() => {
-                  const list = savedList.filter(x => x.company.toLowerCase().includes(loadSearch.trim().toLowerCase())).slice().reverse();
+                  const q = loadSearch.trim().toLowerCase();
+                  const list = savedList.filter(x => !q || [x.company, x.code, x.sales?.followUp].some(v => String(v || '').toLowerCase().includes(q))).slice().reverse();
                   if (list.length === 0) {
                     return <div style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', padding: '28px 0' }}>{savedList.length === 0 ? '저장된 견적이 없습니다' : '검색 결과가 없습니다'}</div>;
                   }
@@ -1890,7 +1902,13 @@ ${scanSecMeta && !scanSecMeta.hasExist
                           {item.type === 'scan'
                             ? `${item.savedAt} · ${item.scan?.scanDep || ''} 출발 · ${(item.scan?.manualRows || []).filter(r => r.dest && r.rate).length}개 구간`
                             : `${item.savedAt} · ${item.data?.dep || ''} → ${item.data?.dest || ''} · ${TONS[item.data?.tonIdx] || ''}`}
+                          {item.sales?.grade ? ` · ${item.sales.grade}${item.sales.accompany === 'need' ? ' ★' : item.sales.accompany === 'done' ? ' ●' : ''}` : ''}
                         </div>
+                        {item.sales?.followUp && (
+                          <div style={{ fontSize: 11.5, color: '#475569', marginTop: 4, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            ↳ {item.sales.followUp}
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => loadQuote(item)}
